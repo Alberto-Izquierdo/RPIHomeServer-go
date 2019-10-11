@@ -5,54 +5,18 @@ import (
 	"github.com/stianeikeland/go-rpio"
 )
 
-type gpioManager struct {
-	pinStates     map[int]bool
-	gpioAvailable bool
+type PairNamePin struct {
+	name string
+	pin  int
 }
 
-func (m gpioManager) turnPinOn(pin int) {
-	v, ok := m.pinStates[pin]
-	if !ok || !v {
-		if m.gpioAvailable {
-			rpio.Pin(pin).High()
-		}
-		m.pinStates[pin] = true
+func Setup(pins []PairNamePin) {
+	manager.PinStates = make(map[string]*pinState)
+	for _, pinName := range pins {
+		manager.PinStates[pinName.name] = new(pinState)
+		manager.PinStates[pinName.name].state = false
+		manager.PinStates[pinName.name].pin = pinName.pin
 	}
-	fmt.Println("Pin ", pin, " turned on")
-}
-
-func (m gpioManager) turnPinOff(pin int) {
-	v, ok := m.pinStates[pin]
-	if !ok || v {
-		if m.gpioAvailable {
-			rpio.Pin(pin).High()
-		}
-		m.pinStates[pin] = false
-	}
-	fmt.Println("Pin ", pin, " turned off")
-}
-
-func (m gpioManager) clearAllPins() {
-	for k, _ := range m.pinStates {
-		if m.gpioAvailable {
-			rpio.Pin(k).Low()
-		}
-		m.pinStates[k] = false
-	}
-}
-
-func (m gpioManager) getPinState(pin int) bool {
-	v, ok := m.pinStates[pin]
-	if ok {
-		return v
-	}
-	return false
-}
-
-var manager gpioManager
-
-func Setup() {
-	manager.pinStates = make(map[int]bool)
 	manager.gpioAvailable = true
 	err := rpio.Open()
 	if err != nil {
@@ -62,11 +26,11 @@ func Setup() {
 	}
 }
 
-func TurnPinOn(pin int) {
+func TurnPinOn(pin string) {
 	manager.turnPinOn(pin)
 }
 
-func TurnPinOff(pin int) {
+func TurnPinOff(pin string) {
 	manager.turnPinOff(pin)
 }
 
@@ -77,6 +41,61 @@ func ClearAllPins() {
 	}
 }
 
-func GetPinState(pin int) bool {
+func GetPinState(pin string) bool {
 	return manager.getPinState(pin)
+}
+
+var manager gpioManager
+
+type pinState struct {
+	pin   int
+	state bool
+}
+
+type gpioManager struct {
+	PinStates     map[string]*pinState
+	gpioAvailable bool
+}
+
+func (m gpioManager) turnPinOn(pin string) {
+	v, ok := m.PinStates[pin]
+	if !ok {
+		fmt.Println("Pin ", pin, " not set in the initial configuration")
+	} else if !v.state {
+		if m.gpioAvailable {
+			rpio.Pin(v.pin).High()
+		}
+		m.PinStates[pin].state = true
+		fmt.Println("Pin ", pin, " turned on")
+	}
+}
+
+func (m gpioManager) turnPinOff(pin string) {
+	v, ok := m.PinStates[pin]
+	if !ok {
+		fmt.Println("Pin ", pin, " not set in the initial configuration")
+	} else if v.state {
+		if m.gpioAvailable {
+			rpio.Pin(v.pin).Low()
+		}
+		m.PinStates[pin].state = false
+		fmt.Println("Pin ", pin, " turned off")
+	}
+}
+
+func (m gpioManager) clearAllPins() {
+	for _, v := range m.PinStates {
+		if m.gpioAvailable {
+			rpio.Pin(v.pin).Low()
+		}
+		v.state = false
+	}
+}
+
+func (m gpioManager) getPinState(pin string) bool {
+	v, ok := m.PinStates[pin]
+	if ok {
+		return v.state
+	}
+	return false
 }
