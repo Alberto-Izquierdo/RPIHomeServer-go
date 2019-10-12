@@ -1,8 +1,6 @@
 package gpio_manager
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestGpioManager(t *testing.T) {
 	pinState := GetPinState("test")
