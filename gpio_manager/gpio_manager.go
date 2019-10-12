@@ -18,8 +18,7 @@ func Setup(pins []PairNamePin) {
 		manager.PinStates[pinName.name].pin = pinName.pin
 	}
 	manager.gpioAvailable = true
-	err := rpio.Open()
-	if err != nil {
+	if err := rpio.Open(); err != nil {
 		manager.gpioAvailable = false
 		fmt.Println("Unable to open gpio, error:", err.Error())
 		fmt.Println("The program will continue for testing purpouses")
@@ -58,8 +57,7 @@ type gpioManager struct {
 }
 
 func (m gpioManager) turnPinOn(pin string) {
-	v, ok := m.PinStates[pin]
-	if !ok {
+	if v, ok := m.PinStates[pin]; !ok {
 		fmt.Println("Pin ", pin, " not set in the initial configuration")
 	} else if !v.state {
 		if m.gpioAvailable {
@@ -71,8 +69,7 @@ func (m gpioManager) turnPinOn(pin string) {
 }
 
 func (m gpioManager) turnPinOff(pin string) {
-	v, ok := m.PinStates[pin]
-	if !ok {
+	if v, ok := m.PinStates[pin]; !ok {
 		fmt.Println("Pin ", pin, " not set in the initial configuration")
 	} else if v.state {
 		if m.gpioAvailable {
@@ -93,8 +90,7 @@ func (m gpioManager) clearAllPins() {
 }
 
 func (m gpioManager) getPinState(pin string) bool {
-	v, ok := m.PinStates[pin]
-	if ok {
+	if v, ok := m.PinStates[pin]; ok {
 		return v.state
 	}
 	return false
