@@ -4,14 +4,20 @@ import (
 	"testing"
 )
 
-func TestLoadConfigurationEmptyFile(t *testing.T) {
+func TestLoadConfigurationFromPathInvalidPath(t *testing.T) {
+	if _, err := LoadConfigurationFromPath("non_existing_file.json"); err == nil {
+		t.Errorf("LoadConfigurationFromPath() should return an error with an invalid path")
+	}
+}
+
+func TestLoadConfigurationFromPathEmptyFile(t *testing.T) {
 	content := []byte("")
 	if _, err := loadConfigurationFromFileContent(content); err == nil {
 		t.Errorf("loadConfigurationFromFileContent() should return an error")
 	}
 }
 
-func TestLoadConfigurationEmptyPinsActive(t *testing.T) {
+func TestLoadConfigurationFromPathEmptyPinsActive(t *testing.T) {
 	content := []byte(`
 	{
 		"GRPCServerIp": "192.168.2.160:8000"
@@ -21,7 +27,7 @@ func TestLoadConfigurationEmptyPinsActive(t *testing.T) {
 	}
 }
 
-func TestLoadConfigurationWithInvalidTypes(t *testing.T) {
+func TestLoadConfigurationFromPathWithInvalidTypes(t *testing.T) {
 	content := []byte(`
 	{
 		"GRPCServerIp": "192.168.2.160:8000",
@@ -34,7 +40,7 @@ func TestLoadConfigurationWithInvalidTypes(t *testing.T) {
 	}
 }
 
-func TestLoadConfigurationWithCorrectData(t *testing.T) {
+func TestLoadConfigurationFromPathWithCorrectData(t *testing.T) {
 	content := []byte(`
 	{
 		"GRPCServerIp": "192.168.2.160:8000",
