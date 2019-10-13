@@ -1,7 +1,9 @@
 package gpio_manager
 
 import (
+	"errors"
 	"fmt"
+
 	"github.com/stianeikeland/go-rpio"
 )
 
@@ -10,7 +12,11 @@ type PairNamePin struct {
 	pin  int
 }
 
-func Setup(pins []PairNamePin) {
+func Setup(pins []PairNamePin) (err error) {
+	if len(pins) == 0 {
+		err = errors.New("pins can not be empty")
+		return err
+	}
 	manager.PinStates = make(map[string]*pinState)
 	for _, pinName := range pins {
 		manager.PinStates[pinName.name] = new(pinState)
@@ -23,6 +29,7 @@ func Setup(pins []PairNamePin) {
 		fmt.Println("Unable to open gpio, error:", err.Error())
 		fmt.Println("The program will continue for testing purpouses")
 	}
+	return err
 }
 
 func TurnPinOn(pin string) {

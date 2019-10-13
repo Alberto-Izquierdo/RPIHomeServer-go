@@ -14,7 +14,7 @@ func TestLoadConfigurationEmptyFile(t *testing.T) {
 func TestLoadConfigurationEmptyPinsActive(t *testing.T) {
 	content := []byte(`
 	{
-		"gRPCServerIp": "192.168.2.160:8000"
+		"GRPCServerIp": "192.168.2.160:8000"
 	}`)
 	if _, err := loadConfigurationFromFileContent(content); err == nil {
 		t.Errorf("loadConfigurationFromFileContent() with empty PinsActive content should return an error")
@@ -24,7 +24,7 @@ func TestLoadConfigurationEmptyPinsActive(t *testing.T) {
 func TestLoadConfigurationWithInvalidTypes(t *testing.T) {
 	content := []byte(`
 	{
-		"gRPCServerIp": "192.168.2.160:8000",
+		"GRPCServerIp": "192.168.2.160:8000",
 		"PinsActive": [
 			1234
 		]
@@ -37,7 +37,7 @@ func TestLoadConfigurationWithInvalidTypes(t *testing.T) {
 func TestLoadConfigurationWithCorrectData(t *testing.T) {
 	content := []byte(`
 	{
-		"gRPCServerIp": "192.168.2.160:8000",
+		"GRPCServerIp": "192.168.2.160:8000",
 		"PinsActive": [
 			{
 				"name": "light",

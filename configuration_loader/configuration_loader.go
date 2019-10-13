@@ -9,7 +9,7 @@ import (
 )
 
 type InitialConfiguration struct {
-	gRPCServerIp string
+	GRPCServerIp string
 	PinsActive   []gpio_manager.PairNamePin
 }
 
@@ -24,7 +24,8 @@ func loadConfigurationFromFileContent(fileContent []byte) (result InitialConfigu
 }
 
 func LoadConfigurationFromPath(filePath string) (result InitialConfiguration, err error) {
-	if fileContent, err := ioutil.ReadFile(filePath); err == nil {
+	fileContent, err := ioutil.ReadFile(filePath)
+	if err == nil {
 		result, err = loadConfigurationFromFileContent(fileContent)
 	}
 	return result, err
