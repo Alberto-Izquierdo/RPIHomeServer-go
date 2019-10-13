@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -14,21 +15,9 @@ var exit = false
 
 func main() {
 	setupKeyboardSignal()
-	fmt.Println("Reading configuration from file")
-	filepath := flag.String("path", "", "path to the configuration file")
-	flag.Parse()
-	if *filepath == "" {
-		fmt.Println("Path argument can not be empty")
-		return
-	}
-	config, err := configuration_loader.LoadConfigurationFromPath(*filepath)
+	err := setupConfiguration()
 	if err != nil {
 		fmt.Println("There was an error parsing the configuration file: ", err)
-		return
-	}
-	err = gpio_manager.Setup(config.PinsActive)
-	if err != nil {
-		fmt.Println("There was an error setting up the gpio manager: ", err)
 		return
 	}
 	fmt.Println("Configuration loaded, connecting to gRPC server")
@@ -39,6 +28,24 @@ func main() {
 	}
 	gpio_manager.ClearAllPins()
 	fmt.Println("Done!")
+}
+
+func setupConfiguration() (err error) {
+	filepath := flag.String("path", "", "path to the configuration file")
+	flag.Parse()
+	if *filepath == "" {
+		return errors.New("\"path\" argument can not be empty")
+	}
+	fmt.Println("Reading configuration from file")
+	config, err := configuration_loader.LoadConfigurationFromPath(*filepath)
+	if err != nil {
+		return err
+	}
+	err = gpio_manager.Setup(config.PinsActive)
+	if err != nil {
+		return err
+	}
+	return err
 }
 
 func setupKeyboardSignal() {
