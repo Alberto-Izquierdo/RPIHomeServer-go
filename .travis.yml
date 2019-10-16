@@ -1,6 +1,14 @@
 language: go
 go:
     - 1.13.1
+
+addons:
+  apt:
+    packages:
+      - protobuf-compiler
 script:
+    - go get -u github.com/golang/protobuf/protoc-gen-go
+    - mkdir messages
+    - protoc -I protobuf_messages/ protobuf_messages/messages.proto --go_out=plugins=messages:messages
     - go build
     - go test ./... -cover

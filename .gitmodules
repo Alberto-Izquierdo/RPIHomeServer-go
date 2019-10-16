@@ -1,0 +1,3 @@
+[submodule "protobuf_messages"]
+	path = protobuf_messages
+	url = https://github.com/Alberto-Izquierdo/RPIHomeServer-messages.git
