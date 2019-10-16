@@ -9,6 +9,6 @@ addons:
 script:
     - go get -u github.com/golang/protobuf/protoc-gen-go
     - mkdir messages
-    - protoc -I protobuf_messages/ protobuf_messages/messages.proto --go_out=plugins=messages:messages
+    - protoc -I protobuf_messages/ --go_out=plugins=grpc:messages protobuf_messages/messages.proto
     - go build
     - go test ./... -cover
