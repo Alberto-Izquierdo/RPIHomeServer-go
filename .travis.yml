@@ -11,4 +11,4 @@ script:
     - mkdir messages
     - protoc -I protobuf_messages/ --go_out=plugins=grpc:messages protobuf_messages/messages.proto
     - go build
-    - go test ./... -cover
+    - go test ./gpio_manager ./configuration_loader -cover
