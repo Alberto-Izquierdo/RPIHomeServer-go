@@ -8,8 +8,8 @@ import (
 )
 
 type PairNamePin struct {
-	name string
-	pin  int
+	Name string
+	Pin  int
 }
 
 func Setup(pins []PairNamePin) (err error) {
@@ -19,9 +19,9 @@ func Setup(pins []PairNamePin) (err error) {
 	}
 	manager.PinStates = make(map[string]*pinState)
 	for _, pinName := range pins {
-		manager.PinStates[pinName.name] = new(pinState)
-		manager.PinStates[pinName.name].state = false
-		manager.PinStates[pinName.name].pin = pinName.pin
+		manager.PinStates[pinName.Name] = new(pinState)
+		manager.PinStates[pinName.Name].state = false
+		manager.PinStates[pinName.Name].pin = pinName.Pin
 	}
 	manager.gpioAvailable = true
 	if err := rpio.Open(); err != nil {
