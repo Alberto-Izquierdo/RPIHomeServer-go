@@ -32,6 +32,14 @@ func Setup(pins []PairNamePin) (err error) {
 	return err
 }
 
+func SetPinState(pin string, state bool) {
+	if state {
+		TurnPinOn(pin)
+	} else {
+		TurnPinOff(pin)
+	}
+}
+
 func TurnPinOn(pin string) {
 	manager.turnPinOn(pin)
 }
