@@ -1,14 +1,25 @@
 language: go
 go:
     - 1.13.1
-
+env:
+  matrix:
+    - TARGET=desktop
+    - TARGET=rpi
 addons:
   apt:
     packages:
       - protobuf-compiler
+before_script:
+  - go get -u github.com/golang/protobuf/protoc-gen-go
+  - mkdir messages
+  - protoc -I protobuf_messages/ --go_out=plugins=grpc:messages protobuf_messages/messages.proto
+
 script:
-    - go get -u github.com/golang/protobuf/protoc-gen-go
-    - mkdir messages
-    - protoc -I protobuf_messages/ --go_out=plugins=grpc:messages protobuf_messages/messages.proto
-    - go build
-    - go test ./gpio_manager ./configuration_loader -cover
+  - if [ $TARGET == "desktop" ]; then
+    go build;
+    elif [ $TARGET == "rpi" ]; then
+    env GOOS=linux GOARCH=arm GOARM=5 go build;
+    fi
+  - if [ $TARGET == "desktop" ]; then
+    go test ./gpio_manager ./configuration_loader -cover;
+    fi
