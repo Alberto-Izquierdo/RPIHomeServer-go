@@ -22,6 +22,14 @@ func TestGpioManager(t *testing.T) {
 	if pinState := GetPinState("test"); pinState != false {
 		t.Errorf("GetPinState(%v) == %v, want %v", "test", pinState, false)
 	}
+	SetPinState("test", true)
+	if pinState := GetPinState("test"); pinState != true {
+		t.Errorf("GetPinState(%v) == %v, want %v", "test", pinState, true)
+	}
+	SetPinState("test", false)
+	if pinState := GetPinState("test"); pinState != false {
+		t.Errorf("GetPinState(%v) == %v, want %v", "test", pinState, false)
+	}
 	ClearAllPins()
 }
 

@@ -9,7 +9,7 @@ addons:
   apt:
     packages:
       - protobuf-compiler
-before_script:
+before_install:
   - go get -u github.com/golang/protobuf/protoc-gen-go
   - mkdir messages
   - protoc -I protobuf_messages/ --go_out=plugins=grpc:messages protobuf_messages/messages.proto
