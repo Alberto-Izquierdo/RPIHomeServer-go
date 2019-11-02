@@ -10,14 +10,14 @@ func TestLoadConfigurationFromPathInvalidPath(t *testing.T) {
 	}
 }
 
-func TestLoadConfigurationFromPathEmptyFile(t *testing.T) {
+func TestLoadConfigurationFromStringEmptyFile(t *testing.T) {
 	content := []byte("")
 	if _, err := loadConfigurationFromFileContent(content); err == nil {
 		t.Errorf("loadConfigurationFromFileContent() should return an error")
 	}
 }
 
-func TestLoadConfigurationFromPathEmptyPinsActive(t *testing.T) {
+func TestLoadConfigurationFromStringEmptyPinsActive(t *testing.T) {
 	content := []byte(`
 	{
 		"GRPCServerIp": "192.168.2.160:8000"
@@ -27,7 +27,7 @@ func TestLoadConfigurationFromPathEmptyPinsActive(t *testing.T) {
 	}
 }
 
-func TestLoadConfigurationFromPathWithInvalidTypes(t *testing.T) {
+func TestLoadConfigurationFromStringWithInvalidTypes(t *testing.T) {
 	content := []byte(`
 	{
 		"GRPCServerIp": "192.168.2.160:8000",
@@ -40,7 +40,7 @@ func TestLoadConfigurationFromPathWithInvalidTypes(t *testing.T) {
 	}
 }
 
-func TestLoadConfigurationFromPathWithCorrectData(t *testing.T) {
+func TestLoadClientConfigurationFromStringWithCorrectData(t *testing.T) {
 	content := []byte(`
 	{
 		"GRPCServerIp": "192.168.2.160:8000",
