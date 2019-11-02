@@ -10,15 +10,13 @@ import (
 	"google.golang.org/grpc"
 )
 
-var connection *grpc.ClientConn
-
-func ConnectToGrpcServer(config configuration_loader.InitialConfiguration) (client messages_protocol.RPIHomeServerServiceClient, err error) {
+func ConnectToGrpcServer(config configuration_loader.InitialConfiguration) (client messages_protocol.RPIHomeServerServiceClient, connection *grpc.ClientConn, err error) {
 	connection, err = grpc.Dial(config.GRPCServerIp, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(time.Second))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	client = messages_protocol.NewRPIHomeServerServiceClient(connection)
-	return client, err
+	return client, connection, err
 }
 
 func RegisterPinsToGRPCServer(client messages_protocol.RPIHomeServerServiceClient, config configuration_loader.InitialConfiguration) (err error) {
@@ -40,10 +38,4 @@ func RegisterPinsToGRPCServer(client messages_protocol.RPIHomeServerServiceClien
 		err = errors.New(errorMessage)
 	}
 	return err
-}
-
-func CloseConnection() {
-	if connection != nil {
-		connection.Close()
-	}
 }

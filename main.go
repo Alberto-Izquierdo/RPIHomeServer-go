@@ -29,8 +29,14 @@ func main() {
 		fmt.Println("There was an error setting up the GPIO manager: ", err)
 		return
 	}
+	defer gpio_manager.ClearAllPins()
 	fmt.Println("Configuration loaded, connecting to gRPC server")
-	client, err := grpc.ConnectToGrpcServer(config)
+	client, connection, err := grpc.ConnectToGrpcServer(config)
+	if err != nil {
+		fmt.Println("There was an error connecting to the gRPC server: ", err)
+		return
+	}
+	defer connection.Close()
 	err = grpc.RegisterPinsToGRPCServer(client, config)
 	if err != nil {
 		fmt.Println("There was an error with the gRPC registration: ", err)
@@ -49,8 +55,6 @@ func main() {
 			gpio_manager.SetPinState(*action.Pin, *action.State)
 		}
 	}
-	grpc.CloseConnection()
-	gpio_manager.ClearAllPins()
 	fmt.Println("Done!")
 }
 
