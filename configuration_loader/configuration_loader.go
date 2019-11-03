@@ -8,9 +8,15 @@ import (
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/gpio_manager"
 )
 
+type TelegramBotConfiguration struct {
+	TelegramBotToken string
+	AuthorizedUsers  []int
+}
+
 type InitialConfiguration struct {
-	GRPCServerIp string
-	PinsActive   []gpio_manager.PairNamePin
+	GRPCServerIp             string
+	PinsActive               []gpio_manager.PairNamePin
+	TelegramBotConfiguration *TelegramBotConfiguration
 }
 
 func loadConfigurationFromFileContent(fileContent []byte) (result InitialConfiguration, err error) {
@@ -18,6 +24,11 @@ func loadConfigurationFromFileContent(fileContent []byte) (result InitialConfigu
 	if err == nil {
 		if len(result.PinsActive) == 0 {
 			err = errors.New("PinsActive array is empty")
+		}
+		if result.TelegramBotConfiguration != nil {
+			if len(result.TelegramBotConfiguration.AuthorizedUsers) == 0 {
+				err = errors.New("Telegram bot does not have any authorized users")
+			}
 		}
 	}
 	return result, err
