@@ -59,7 +59,7 @@ func TestLoadClientConfigurationFromStringWithNoAuthorizedUsers(t *testing.T) {
 	}
 }
 
-func TestLoadClientConfigurationFromStringWithCorrectData(t *testing.T) {
+func TestLoadClientConfigurationFromStringWithBothTelegramAndGRPCData(t *testing.T) {
 	content := []byte(`
 	{
 		"GRPCServerIp": "192.168.2.160:8000",
@@ -76,10 +76,32 @@ func TestLoadClientConfigurationFromStringWithCorrectData(t *testing.T) {
 			]
 		}
 	}`)
+	if _, err := loadConfigurationFromFileContent(content); err == nil {
+		t.Errorf("loadConfigurationFromFileContent() with both telegram bot and gRPC data should return an error, instead it returned %s", err)
+	}
+}
+
+func TestLoadClientConfigurationFromStringWithCorrectTelegramBotData(t *testing.T) {
+	content := []byte(`
+	{
+		"PinsActive": [
+			{
+				"name": "light",
+				"pin": 	18
+			}
+		],
+		"TelegramBotConfiguration": {
+			"TelegramBotToken": "randomToken",
+			"AuthorizedUsers": [
+				1234
+			]
+		}
+	}`)
+
 	if config, err := loadConfigurationFromFileContent(content); err != nil {
 		t.Errorf("loadConfigurationFromFileContent() with proper content should not return an error, instead it returned %s", err)
-	} else if config.GRPCServerIp != "192.168.2.160:8000" {
-		t.Errorf("The ip was not properly loaded, it should be 192.168.2.160:8000, instead, it is %s", config.GRPCServerIp)
+	} else if config.GRPCServerIp != "" {
+		t.Errorf("The ip should be empty, instead, it is %s", config.GRPCServerIp)
 	} else if len(config.PinsActive) == 0 {
 		t.Errorf("The array of pins should not be empty")
 	} else if config.PinsActive[0].Name != "light" {
@@ -94,5 +116,33 @@ func TestLoadClientConfigurationFromStringWithCorrectData(t *testing.T) {
 		t.Errorf("The authorized users array should contain one elements")
 	} else if config.TelegramBotConfiguration.AuthorizedUsers[0] != 1234 {
 		t.Errorf("The authorized users array should contain 1234, instead it contains %d", config.TelegramBotConfiguration.AuthorizedUsers[0])
+	}
+
+}
+
+func TestLoadClientConfigurationFromStringWithCorrectGRPCData(t *testing.T) {
+	content := []byte(`
+	{
+		"GRPCServerIp": "192.168.2.160:8000",
+		"PinsActive": [
+			{
+				"name": "light",
+				"pin": 	18
+			}
+		]
+	}`)
+
+	if config, err := loadConfigurationFromFileContent(content); err != nil {
+		t.Errorf("loadConfigurationFromFileContent() with proper content should not return an error, instead it returned %s", err)
+	} else if config.GRPCServerIp != "192.168.2.160:8000" {
+		t.Errorf("The ip should be empty, instead, it is %s", config.GRPCServerIp)
+	} else if len(config.PinsActive) == 0 {
+		t.Errorf("The array of pins should not be empty")
+	} else if config.PinsActive[0].Name != "light" {
+		t.Errorf("The name of the pin should be \"light\", instead it is %s", config.PinsActive[0].Name)
+	} else if config.PinsActive[0].Pin != 18 {
+		t.Errorf("The value of the pin should be 18, instead it is %d", config.PinsActive[0].Pin)
+	} else if config.TelegramBotConfiguration != nil {
+		t.Errorf("The telegram bot configuration should be nil")
 	}
 }
