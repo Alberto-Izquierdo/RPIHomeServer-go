@@ -29,6 +29,9 @@ func loadConfigurationFromFileContent(fileContent []byte) (result InitialConfigu
 			if len(result.TelegramBotConfiguration.AuthorizedUsers) == 0 {
 				err = errors.New("Telegram bot does not have any authorized users")
 			}
+			if result.GRPCServerIp != "" {
+				err = errors.New("Configuration should only contain one of telegram bot configuration or gRPC configuration")
+			}
 		}
 	}
 	return result, err
