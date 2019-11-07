@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"strings"
+	"time"
 
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/gpio_manager"
 )
@@ -13,10 +15,34 @@ type TelegramBotConfiguration struct {
 	AuthorizedUsers  []int
 }
 
+type ActionTime time.Time
+
+type Action struct {
+	Pin   string
+	State bool
+	Time  ActionTime
+}
+
 type InitialConfiguration struct {
 	GRPCServerIp             string
 	PinsActive               []gpio_manager.PairNamePin
 	TelegramBotConfiguration *TelegramBotConfiguration
+	AutomaticMessages        []Action
+}
+
+func (a *ActionTime) UnmarshalJSON(b []byte) error {
+	s := strings.Trim(string(b), "\"")
+	t, err := time.Parse("15:04:05", s)
+	if err != nil {
+		return err
+	}
+	*a = ActionTime(t)
+	return nil
+}
+
+func (a ActionTime) Format(s string) string {
+	t := time.Time(a)
+	return t.Format(s)
 }
 
 func loadConfigurationFromFileContent(fileContent []byte) (result InitialConfiguration, err error) {
