@@ -73,7 +73,7 @@ type gpioManager struct {
 
 func (m gpioManager) turnPinOn(pin string) {
 	if v, ok := m.PinStates[pin]; !ok {
-		fmt.Println("Pin ", pin, " not set in the initial configuration")
+		fmt.Println("[gpio_manager]: Pin ", pin, " not set in the initial configuration")
 	} else if !v.state {
 		if m.gpioAvailable {
 			rpio.Pin(v.pin).High()
@@ -85,7 +85,7 @@ func (m gpioManager) turnPinOn(pin string) {
 
 func (m gpioManager) turnPinOff(pin string) {
 	if v, ok := m.PinStates[pin]; !ok {
-		fmt.Println("Pin ", pin, " not set in the initial configuration")
+		fmt.Println("[gpio_manager]: Pin ", pin, " not set in the initial configuration")
 	} else if v.state {
 		if m.gpioAvailable {
 			rpio.Pin(v.pin).Low()

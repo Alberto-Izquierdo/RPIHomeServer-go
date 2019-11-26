@@ -132,13 +132,17 @@ func TestLoadClientConfigurationFromStringWithCorrectGRPCData(t *testing.T) {
 		],
 		"AutomaticMessages": [
 			{
-				"Pin": "light",
-				"State": true,
+				"Action": {
+					"Pin": "light",
+					"State": true
+				},
 				"Time": "03:45:10"
 			},
 			{
-				"Pin": "light",
-				"State": false,
+				"Action": {
+					"Pin": "light",
+					"State": false
+				},
 				"Time": "03:45:15"
 			}
 		]
