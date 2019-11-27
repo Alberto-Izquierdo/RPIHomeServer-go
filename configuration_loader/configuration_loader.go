@@ -49,6 +49,10 @@ func (a MyTime) Format(s string) string {
 	return t.Format(s)
 }
 
+func (this ActionTime) LessThan(other interface{}) bool {
+	return time.Time(this.Time).Before(time.Time(other.(ActionTime).Time))
+}
+
 func loadConfigurationFromFileContent(fileContent []byte) (result InitialConfiguration, err error) {
 	err = json.Unmarshal(fileContent, &result)
 	if err == nil {
