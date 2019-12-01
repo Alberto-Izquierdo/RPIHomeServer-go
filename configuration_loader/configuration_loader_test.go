@@ -120,6 +120,38 @@ func TestLoadClientConfigurationFromStringWithCorrectTelegramBotData(t *testing.
 
 }
 
+func TestLoadClientConfigurationFromStringWithWrongAutomaticMessages(t *testing.T) {
+	content := []byte(`
+	{
+		"GRPCServerIp": "192.168.2.160:8000",
+		"PinsActive": [
+			{
+				"name": "light",
+				"pin": 	18
+			}
+		],
+		"AutomaticMessages": [
+			{
+				"Action": {
+					"Pin": "water",
+					"State": true
+				},
+				"Time": "03:45:10"
+			},
+			{
+				"Action": {
+					"Pin": "water",
+					"State": false
+				},
+				"Time": "03:45:15"
+			}
+		]
+	}`)
+	if _, err := loadConfigurationFromFileContent(content); err == nil {
+		t.Errorf("loadConfigurationFromFileContent() with automatic messages to pins not present in the gpio manager should return an error")
+	}
+}
+
 func TestLoadClientConfigurationFromStringWithCorrectGRPCData(t *testing.T) {
 	content := []byte(`
 	{
