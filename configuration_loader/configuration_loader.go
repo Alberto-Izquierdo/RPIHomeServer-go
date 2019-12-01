@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"strconv"
 	"strings"
 	"time"
 
@@ -65,6 +66,20 @@ func loadConfigurationFromFileContent(fileContent []byte) (result InitialConfigu
 			}
 			if result.GRPCServerIp != "" {
 				err = errors.New("Configuration should only contain one of telegram bot configuration or gRPC configuration")
+			}
+		}
+		if len(result.AutomaticMessages) > 0 {
+			for index, automaticMessage := range result.AutomaticMessages {
+				found := false
+				for _, pin := range result.PinsActive {
+					if pin.Name == automaticMessage.Action.Pin {
+						found = true
+						break
+					}
+				}
+				if !found {
+					err = errors.New("Automatic message number " + strconv.Itoa(index) + ", " + automaticMessage.Action.Pin + " not present in the pins active")
+				}
 			}
 		}
 	}
