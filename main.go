@@ -22,11 +22,11 @@ func main() {
 		return
 	}
 	err = gpio_manager.Setup(config.PinsActive)
+	defer gpio_manager.ClearAllPins()
 	if err != nil {
 		fmt.Println("There was an error setting up the GPIO manager: ", err)
 		return
 	}
-	defer gpio_manager.ClearAllPins()
 	/*
 		fmt.Println("Configuration loaded, connecting to gRPC server")
 		client, connection, err := grpc.ConnectToGrpcServer(config)
@@ -52,7 +52,12 @@ func main() {
 	for !exit {
 		select {
 		case action := <-actionsChannel:
-			gpio_manager.SetPinState(action.Pin, action.State)
+			if action.Pin == "GetPinsAvailable" {
+				// TODO: send the pins available to the telegram bot if it exists
+				// gpio_manager.GetPinsAvailable()
+			} else {
+				gpio_manager.SetPinState(action.Pin, action.State)
+			}
 		case exit = <-mainExitChannel:
 			for _, exitChannel := range exitChannels {
 				exitChannel <- true
