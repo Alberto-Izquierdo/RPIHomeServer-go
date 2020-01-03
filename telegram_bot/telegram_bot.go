@@ -71,12 +71,12 @@ func LaunchTelegramBot(config configuration_loader.InitialConfiguration, outputC
 
 func getMessagesAvailableMarkup(_ string, config configuration_loader.InitialConfiguration, ChatID int64, ReplyToMessageID int, outputChannel chan configuration_loader.Action, inputChannel chan string) tgbotapi.MessageConfig {
 	markup := tgbotapi.InlineKeyboardMarkup{
-		InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{
-			[]tgbotapi.InlineKeyboardButton{
-				// TODO: fill with pins
-				tgbotapi.InlineKeyboardButton{Text: "test"},
-			},
-		},
+		InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{},
+	}
+	for index, value := range config.PinsActive {
+		markup.InlineKeyboard = append(markup.InlineKeyboard, []tgbotapi.InlineKeyboardButton{})
+		markup.InlineKeyboard[index] = append(markup.InlineKeyboard[index], tgbotapi.InlineKeyboardButton{Text: "turn" + value.Name + "On"})
+		markup.InlineKeyboard[index] = append(markup.InlineKeyboard[index], tgbotapi.InlineKeyboardButton{Text: "turn" + value.Name + "Off"})
 	}
 	edit := tgbotapi.NewEditMessageReplyMarkup(ChatID, ReplyToMessageID, markup)
 	msg := tgbotapi.NewMessage(ChatID, "Action not available")
@@ -86,13 +86,15 @@ func getMessagesAvailableMarkup(_ string, config configuration_loader.InitialCon
 }
 
 func turnPinOn(message string, config configuration_loader.InitialConfiguration, ChatID int64, ReplyToMessageID int, outputChannel chan configuration_loader.Action, inputChannel chan string) tgbotapi.MessageConfig {
-	pin := strings.Fields(message)[0]
+	firstPart := strings.Fields(message)[0]
+	pin := firstPart[4 : len(firstPart)-2]
 	outputChannel <- configuration_loader.Action{pin, true}
 	return processGPIOResponse(inputChannel, ChatID, ReplyToMessageID)
 }
 
 func turnPinOff(message string, config configuration_loader.InitialConfiguration, ChatID int64, ReplyToMessageID int, outputChannel chan configuration_loader.Action, inputChannel chan string) tgbotapi.MessageConfig {
-	pin := strings.Fields(message)[0]
+	firstPart := strings.Fields(message)[0]
+	pin := firstPart[4 : len(firstPart)-3]
 	outputChannel <- configuration_loader.Action{pin, false}
 	return processGPIOResponse(inputChannel, ChatID, ReplyToMessageID)
 }
