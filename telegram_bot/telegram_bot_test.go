@@ -32,21 +32,25 @@ func TestGetMessagesAvailableMarkup(t *testing.T) {
 	if markup, ok := msg.ReplyMarkup.(tgbotapi.EditMessageReplyMarkupConfig); ok {
 		if len(markup.ReplyMarkup.InlineKeyboard) != 2 {
 			t.Errorf("The message should contain two rows (light and water)")
-		} else if len(markup.ReplyMarkup.InlineKeyboard[0]) != 2 {
-			t.Errorf("The message should contain two columns (on and off)")
+		} else if len(markup.ReplyMarkup.InlineKeyboard[0]) != 3 {
+			t.Errorf("The message should contain three columns (on, off, onAndOff)")
 		} else if markup.ReplyMarkup.InlineKeyboard[0][0].Text != "turnLightOn" {
-			t.Errorf("error")
+			t.Errorf("Button should contain \"turnLightOn\" and it is \"%s\"", markup.ReplyMarkup.InlineKeyboard[0][0].Text)
 		} else if markup.ReplyMarkup.InlineKeyboard[0][1].Text != "turnLightOff" {
-			t.Errorf("error")
-		} else if len(markup.ReplyMarkup.InlineKeyboard[1]) != 2 {
-			t.Errorf("The message should contain two columns (on and off)")
+			t.Errorf("Button should contain \"turnLightOff\" and it is \"%s\"", markup.ReplyMarkup.InlineKeyboard[0][1].Text)
+		} else if markup.ReplyMarkup.InlineKeyboard[0][2].Text != "turnLightOnAndOff 2s" {
+			t.Errorf("Button should contain \"turnLightOnAndOff 2s\" and it is \"%s\"", markup.ReplyMarkup.InlineKeyboard[0][2].Text)
+		} else if len(markup.ReplyMarkup.InlineKeyboard[1]) != 3 {
+			t.Errorf("The message should contain three columns (on, off, onAndOff)")
 		} else if markup.ReplyMarkup.InlineKeyboard[1][0].Text != "turnWaterOn" {
-			t.Errorf("error")
+			t.Errorf("Button should contain \"turnWaterOn\" and it is \"%s\"", markup.ReplyMarkup.InlineKeyboard[1][0].Text)
 		} else if markup.ReplyMarkup.InlineKeyboard[1][1].Text != "turnWaterOff" {
-			t.Errorf("error")
+			t.Errorf("Button should contain \"turnWaterOff\" and it is \"%s\"", markup.ReplyMarkup.InlineKeyboard[1][1].Text)
+		} else if markup.ReplyMarkup.InlineKeyboard[1][2].Text != "turnWaterOnAndOff 2s" {
+			t.Errorf("Button should contain \"turnWaterOnAndOff 2s\" and it is \"%s\"", markup.ReplyMarkup.InlineKeyboard[1][2].Text)
 		}
 	} else {
-		t.Errorf("error")
+		t.Errorf("Error getting the message's reply markup")
 	}
 }
 
@@ -55,14 +59,18 @@ func TestTurnPinOn(t *testing.T) {
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Light", 1})
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Water", 2})
 	telegramOutputChannel := make(chan configuration_loader.Action)
-	go turnPinOn("turnLightOn", config, 0, 0, telegramOutputChannel)
+	go func() {
+		turnPinOn("turnLightOn", config, 0, 0, telegramOutputChannel)
+	}()
 	action := <-telegramOutputChannel
 	if action.Pin != "Light" {
 		t.Errorf("Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
 	} else if action.State != true {
 		t.Errorf("Action's state should be true")
 	}
-	go turnPinOn("turnWaterOn", config, 0, 0, telegramOutputChannel)
+	go func() {
+		turnPinOn("turnWaterOn", config, 0, 0, telegramOutputChannel)
+	}()
 	action = <-telegramOutputChannel
 	if action.Pin != "Water" {
 		t.Errorf("Pin name should be \"Water\", instead it is \"%s\"", action.Pin)
@@ -76,17 +84,43 @@ func TestTurnPinOff(t *testing.T) {
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Light", 1})
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Water", 2})
 	telegramOutputChannel := make(chan configuration_loader.Action)
-	go turnPinOff("turnLightOff", config, 0, 0, telegramOutputChannel)
+	go func() {
+		turnPinOff("turnLightOff", config, 0, 0, telegramOutputChannel)
+	}()
 	action := <-telegramOutputChannel
 	if action.Pin != "Light" {
 		t.Errorf("Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
 	} else if action.State != false {
 		t.Errorf("Action's state should be true")
 	}
-	go turnPinOff("turnWaterOff", config, 0, 0, telegramOutputChannel)
+	go func() {
+		turnPinOff("turnWaterOff", config, 0, 0, telegramOutputChannel)
+	}()
 	action = <-telegramOutputChannel
 	if action.Pin != "Water" {
 		t.Errorf("Pin name should be \"Water\", instead it is \"%s\"", action.Pin)
+	} else if action.State != false {
+		t.Errorf("Action's state should be true")
+	}
+}
+
+func TestTurnPinOnAndOff(t *testing.T) {
+	var config configuration_loader.InitialConfiguration
+	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Light", 1})
+	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Water", 2})
+	telegramOutputChannel := make(chan configuration_loader.Action)
+	go func() {
+		turnPinOnAndOff("turnLightOnAndOff 1s", config, 0, 0, telegramOutputChannel)
+	}()
+	action := <-telegramOutputChannel
+	if action.Pin != "Light" {
+		t.Errorf("Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
+	} else if action.State != true {
+		t.Errorf("Action's state should be false")
+	}
+	action = <-telegramOutputChannel
+	if action.Pin != "Light" {
+		t.Errorf("Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
 	} else if action.State != false {
 		t.Errorf("Action's state should be true")
 	}
