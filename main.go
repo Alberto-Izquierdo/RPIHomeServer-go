@@ -50,7 +50,7 @@ func main() {
 	}
 	if config.TelegramBotConfiguration != nil {
 		exitChannels = append(exitChannels, make(chan bool))
-		telegram_bot.LaunchTelegramBot(config, actionsChannel, exitChannels[len(exitChannels)-1])
+		go telegram_bot.LaunchTelegramBot(config, actionsChannel, exitChannels[len(exitChannels)-1])
 	}
 	fmt.Println("Waiting for messages")
 	var exit = false

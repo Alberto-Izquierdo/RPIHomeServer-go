@@ -2,6 +2,7 @@ package telegram_bot
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -53,8 +54,8 @@ func LaunchTelegramBot(config configuration_loader.InitialConfiguration, outputC
 			if userAuthorized {
 				key := strings.Fields(update.Message.Text)[0]
 				if actionFunction, ok := actionsMap[key]; !ok {
-					fmt.Println("Action not available")
-					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Action not available")
+					fmt.Println("Action \"" + key + "\" not available")
+					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Action \""+key+"\" not available")
 					msg.ReplyToMessageID = update.Message.MessageID
 					bot.Send(msg)
 				} else {
@@ -67,6 +68,7 @@ func LaunchTelegramBot(config configuration_loader.InitialConfiguration, outputC
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "User not authorized :(")
 				msg.ReplyToMessageID = update.Message.MessageID
 				bot.Send(msg)
+				fmt.Println("User " + strconv.Itoa(update.Message.From.ID) + " tried to send a message (not authorized)")
 			}
 		}
 	}
@@ -74,19 +76,13 @@ func LaunchTelegramBot(config configuration_loader.InitialConfiguration, outputC
 }
 
 func getMessagesAvailableMarkup(_ string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, _ chan configuration_loader.Action) tgbotapi.MessageConfig {
-	markup := tgbotapi.InlineKeyboardMarkup{
-		InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{},
+	markup := tgbotapi.NewReplyKeyboard()
+	for _, value := range config.PinsActive {
+		markup.Keyboard = append(markup.Keyboard, tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton("turn"+value.Name+"On"), tgbotapi.NewKeyboardButton("turn"+value.Name+"Off"), tgbotapi.NewKeyboardButton("turn"+value.Name+"OnAndOff 2s")))
 	}
-	for index, value := range config.PinsActive {
-		markup.InlineKeyboard = append(markup.InlineKeyboard, []tgbotapi.InlineKeyboardButton{})
-		markup.InlineKeyboard[index] = append(markup.InlineKeyboard[index], tgbotapi.InlineKeyboardButton{Text: "turn" + value.Name + "On"})
-		markup.InlineKeyboard[index] = append(markup.InlineKeyboard[index], tgbotapi.InlineKeyboardButton{Text: "turn" + value.Name + "Off"})
-		markup.InlineKeyboard[index] = append(markup.InlineKeyboard[index], tgbotapi.InlineKeyboardButton{Text: "turn" + value.Name + "OnAndOff 2s"})
-	}
-	edit := tgbotapi.NewEditMessageReplyMarkup(chatId, replyToMessageId, markup)
-	msg := tgbotapi.NewMessage(chatId, "Action not available")
+	msg := tgbotapi.NewMessage(chatId, "Welcome to rpi bot")
 	msg.ReplyToMessageID = replyToMessageId
-	msg.ReplyMarkup = edit
+	msg.ReplyMarkup = markup
 	return msg
 }
 

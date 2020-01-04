@@ -29,25 +29,25 @@ func TestGetMessagesAvailableMarkup(t *testing.T) {
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Light", 1})
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Water", 2})
 	msg := getMessagesAvailableMarkup("", config, 0, 0, nil)
-	if markup, ok := msg.ReplyMarkup.(tgbotapi.EditMessageReplyMarkupConfig); ok {
-		if len(markup.ReplyMarkup.InlineKeyboard) != 2 {
+	if markup, ok := msg.ReplyMarkup.(tgbotapi.ReplyKeyboardMarkup); ok {
+		if len(markup.Keyboard) != 2 {
 			t.Errorf("The message should contain two rows (light and water)")
-		} else if len(markup.ReplyMarkup.InlineKeyboard[0]) != 3 {
+		} else if len(markup.Keyboard[0]) != 3 {
 			t.Errorf("The message should contain three columns (on, off, onAndOff)")
-		} else if markup.ReplyMarkup.InlineKeyboard[0][0].Text != "turnLightOn" {
-			t.Errorf("Button should contain \"turnLightOn\" and it is \"%s\"", markup.ReplyMarkup.InlineKeyboard[0][0].Text)
-		} else if markup.ReplyMarkup.InlineKeyboard[0][1].Text != "turnLightOff" {
-			t.Errorf("Button should contain \"turnLightOff\" and it is \"%s\"", markup.ReplyMarkup.InlineKeyboard[0][1].Text)
-		} else if markup.ReplyMarkup.InlineKeyboard[0][2].Text != "turnLightOnAndOff 2s" {
-			t.Errorf("Button should contain \"turnLightOnAndOff 2s\" and it is \"%s\"", markup.ReplyMarkup.InlineKeyboard[0][2].Text)
-		} else if len(markup.ReplyMarkup.InlineKeyboard[1]) != 3 {
+		} else if markup.Keyboard[0][0].Text != "turnLightOn" {
+			t.Errorf("Button should contain \"turnLightOn\" and it is \"%s\"", markup.Keyboard[0][0].Text)
+		} else if markup.Keyboard[0][1].Text != "turnLightOff" {
+			t.Errorf("Button should contain \"turnLightOff\" and it is \"%s\"", markup.Keyboard[0][1].Text)
+		} else if markup.Keyboard[0][2].Text != "turnLightOnAndOff 2s" {
+			t.Errorf("Button should contain \"turnLightOnAndOff 2s\" and it is \"%s\"", markup.Keyboard[0][2].Text)
+		} else if len(markup.Keyboard[1]) != 3 {
 			t.Errorf("The message should contain three columns (on, off, onAndOff)")
-		} else if markup.ReplyMarkup.InlineKeyboard[1][0].Text != "turnWaterOn" {
-			t.Errorf("Button should contain \"turnWaterOn\" and it is \"%s\"", markup.ReplyMarkup.InlineKeyboard[1][0].Text)
-		} else if markup.ReplyMarkup.InlineKeyboard[1][1].Text != "turnWaterOff" {
-			t.Errorf("Button should contain \"turnWaterOff\" and it is \"%s\"", markup.ReplyMarkup.InlineKeyboard[1][1].Text)
-		} else if markup.ReplyMarkup.InlineKeyboard[1][2].Text != "turnWaterOnAndOff 2s" {
-			t.Errorf("Button should contain \"turnWaterOnAndOff 2s\" and it is \"%s\"", markup.ReplyMarkup.InlineKeyboard[1][2].Text)
+		} else if markup.Keyboard[1][0].Text != "turnWaterOn" {
+			t.Errorf("Button should contain \"turnWaterOn\" and it is \"%s\"", markup.Keyboard[1][0].Text)
+		} else if markup.Keyboard[1][1].Text != "turnWaterOff" {
+			t.Errorf("Button should contain \"turnWaterOff\" and it is \"%s\"", markup.Keyboard[1][1].Text)
+		} else if markup.Keyboard[1][2].Text != "turnWaterOnAndOff 2s" {
+			t.Errorf("Button should contain \"turnWaterOnAndOff 2s\" and it is \"%s\"", markup.Keyboard[1][2].Text)
 		}
 	} else {
 		t.Errorf("Error getting the message's reply markup")
