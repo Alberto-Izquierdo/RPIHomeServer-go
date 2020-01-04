@@ -8,7 +8,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-func LaunchTelegramBot(config configuration_loader.InitialConfiguration, outputChannel chan configuration_loader.Action, inputChannel chan string, exitChannel chan bool) (err error) {
+func LaunchTelegramBot(config configuration_loader.InitialConfiguration, outputChannel chan configuration_loader.Action, exitChannel chan bool) (err error) {
 	bot, err := tgbotapi.NewBotAPI(config.TelegramBotConfiguration.TelegramBotToken)
 	if err != nil {
 		fmt.Println(err)
@@ -56,7 +56,7 @@ func LaunchTelegramBot(config configuration_loader.InitialConfiguration, outputC
 					msg.ReplyToMessageID = update.Message.MessageID
 					bot.Send(msg)
 				} else {
-					msg := actionFunction(update.Message.Text, config, update.Message.Chat.ID, update.Message.MessageID, outputChannel, inputChannel)
+					msg := actionFunction(update.Message.Text, config, update.Message.Chat.ID, update.Message.MessageID, outputChannel)
 					bot.Send(msg)
 				}
 			} else {
@@ -69,7 +69,7 @@ func LaunchTelegramBot(config configuration_loader.InitialConfiguration, outputC
 	return nil
 }
 
-func getMessagesAvailableMarkup(_ string, config configuration_loader.InitialConfiguration, ChatID int64, ReplyToMessageID int, _ chan configuration_loader.Action, _ chan string) tgbotapi.MessageConfig {
+func getMessagesAvailableMarkup(_ string, config configuration_loader.InitialConfiguration, ChatID int64, ReplyToMessageID int, _ chan configuration_loader.Action) tgbotapi.MessageConfig {
 	markup := tgbotapi.InlineKeyboardMarkup{
 		InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{},
 	}
@@ -82,28 +82,27 @@ func getMessagesAvailableMarkup(_ string, config configuration_loader.InitialCon
 	msg := tgbotapi.NewMessage(ChatID, "Action not available")
 	msg.ReplyToMessageID = ReplyToMessageID
 	msg.ReplyMarkup = edit
-	fmt.Println("Number: ", len(markup.InlineKeyboard))
 	return msg
 }
 
-func turnPinOn(message string, config configuration_loader.InitialConfiguration, ChatID int64, ReplyToMessageID int, outputChannel chan configuration_loader.Action, inputChannel chan string) tgbotapi.MessageConfig {
+func turnPinOn(message string, config configuration_loader.InitialConfiguration, ChatID int64, ReplyToMessageID int, outputChannel chan configuration_loader.Action) tgbotapi.MessageConfig {
 	firstPart := strings.Fields(message)[0]
 	pin := firstPart[4 : len(firstPart)-2]
 	outputChannel <- configuration_loader.Action{pin, true}
-	return processGPIOResponse(inputChannel, ChatID, ReplyToMessageID)
+	return processGPIOResponse(pin, "On", ChatID, ReplyToMessageID)
 }
 
-func turnPinOff(message string, config configuration_loader.InitialConfiguration, ChatID int64, ReplyToMessageID int, outputChannel chan configuration_loader.Action, inputChannel chan string) tgbotapi.MessageConfig {
+func turnPinOff(message string, config configuration_loader.InitialConfiguration, ChatID int64, ReplyToMessageID int, outputChannel chan configuration_loader.Action) tgbotapi.MessageConfig {
 	firstPart := strings.Fields(message)[0]
 	pin := firstPart[4 : len(firstPart)-3]
 	outputChannel <- configuration_loader.Action{pin, false}
-	return processGPIOResponse(inputChannel, ChatID, ReplyToMessageID)
+	return processGPIOResponse(pin, "Off", ChatID, ReplyToMessageID)
 }
 
-type messageHandlingFunc func(action string, config configuration_loader.InitialConfiguration, ChatID int64, ReplyToMessageID int, outputChannel chan configuration_loader.Action, inputChannel chan string) tgbotapi.MessageConfig
+type messageHandlingFunc func(action string, config configuration_loader.InitialConfiguration, ChatID int64, ReplyToMessageID int, outputChannel chan configuration_loader.Action) tgbotapi.MessageConfig
 
-func processGPIOResponse(inputChannel chan string, chatId int64, replyToMessageId int) tgbotapi.MessageConfig {
-	response := <-inputChannel
+func processGPIOResponse(pin string, state string, chatId int64, replyToMessageId int) tgbotapi.MessageConfig {
+	response := pin + " turned " + state
 	msg := tgbotapi.NewMessage(chatId, response)
 	msg.ReplyToMessageID = replyToMessageId
 	return msg

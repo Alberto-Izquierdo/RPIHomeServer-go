@@ -10,6 +10,7 @@ import (
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/gpio_manager"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/message_generator"
+	"github.com/Alberto-Izquierdo/RPIHomeServer-go/telegram_bot"
 )
 
 var mainExitChannel = make(chan bool)
@@ -47,17 +48,16 @@ func main() {
 		exitChannels = append(exitChannels, make(chan bool))
 		go message_generator.Run(config.AutomaticMessages, actionsChannel, exitChannels[len(exitChannels)-1])
 	}
+	if config.TelegramBotConfiguration != nil {
+		exitChannels = append(exitChannels, make(chan bool))
+		telegram_bot.LaunchTelegramBot(config, actionsChannel, exitChannels[len(exitChannels)-1])
+	}
 	fmt.Println("Waiting for messages")
 	var exit = false
 	for !exit {
 		select {
 		case action := <-actionsChannel:
-			if action.Pin == "GetPinsAvailable" {
-				// TODO: send the pins available to the telegram bot if it exists
-				// gpio_manager.GetPinsAvailable()
-			} else {
-				gpio_manager.SetPinState(action.Pin, action.State)
-			}
+			gpio_manager.SetPinState(action.Pin, action.State)
 		case exit = <-mainExitChannel:
 			for _, exitChannel := range exitChannels {
 				exitChannel <- true

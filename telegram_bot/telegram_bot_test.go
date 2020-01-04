@@ -10,7 +10,6 @@ import (
 )
 
 func TestLaunchTelegramBot(t *testing.T) {
-	telegramInputChannel := make(chan string)
 	telegramOutputChannel := make(chan configuration_loader.Action)
 	telegramExitChannel := make(chan bool)
 	var config configuration_loader.InitialConfiguration
@@ -22,14 +21,14 @@ func TestLaunchTelegramBot(t *testing.T) {
 		time.Sleep(2 * time.Second)
 		close(telegramExitChannel)
 	}()
-	LaunchTelegramBot(config, telegramOutputChannel, telegramInputChannel, telegramExitChannel)
+	LaunchTelegramBot(config, telegramOutputChannel, telegramExitChannel)
 }
 
 func TestGetMessagesAvailableMarkup(t *testing.T) {
 	var config configuration_loader.InitialConfiguration
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Light", 1})
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Water", 2})
-	msg := getMessagesAvailableMarkup("", config, 0, 0, nil, nil)
+	msg := getMessagesAvailableMarkup("", config, 0, 0, nil)
 	if markup, ok := msg.ReplyMarkup.(tgbotapi.EditMessageReplyMarkupConfig); ok {
 		if len(markup.ReplyMarkup.InlineKeyboard) != 2 {
 			t.Errorf("The message should contain two rows (light and water)")
@@ -55,16 +54,15 @@ func TestTurnPinOn(t *testing.T) {
 	var config configuration_loader.InitialConfiguration
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Light", 1})
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Water", 2})
-	telegramInputChannel := make(chan string)
 	telegramOutputChannel := make(chan configuration_loader.Action)
-	go turnPinOn("turnLightOn", config, 0, 0, telegramOutputChannel, telegramInputChannel)
+	go turnPinOn("turnLightOn", config, 0, 0, telegramOutputChannel)
 	action := <-telegramOutputChannel
 	if action.Pin != "Light" {
 		t.Errorf("Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
 	} else if action.State != true {
 		t.Errorf("Action's state should be true")
 	}
-	go turnPinOn("turnWaterOn", config, 0, 0, telegramOutputChannel, telegramInputChannel)
+	go turnPinOn("turnWaterOn", config, 0, 0, telegramOutputChannel)
 	action = <-telegramOutputChannel
 	if action.Pin != "Water" {
 		t.Errorf("Pin name should be \"Water\", instead it is \"%s\"", action.Pin)
@@ -77,16 +75,15 @@ func TestTurnPinOff(t *testing.T) {
 	var config configuration_loader.InitialConfiguration
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Light", 1})
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Water", 2})
-	telegramInputChannel := make(chan string)
 	telegramOutputChannel := make(chan configuration_loader.Action)
-	go turnPinOff("turnLightOff", config, 0, 0, telegramOutputChannel, telegramInputChannel)
+	go turnPinOff("turnLightOff", config, 0, 0, telegramOutputChannel)
 	action := <-telegramOutputChannel
 	if action.Pin != "Light" {
 		t.Errorf("Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
 	} else if action.State != false {
 		t.Errorf("Action's state should be true")
 	}
-	go turnPinOff("turnWaterOff", config, 0, 0, telegramOutputChannel, telegramInputChannel)
+	go turnPinOff("turnWaterOff", config, 0, 0, telegramOutputChannel)
 	action = <-telegramOutputChannel
 	if action.Pin != "Water" {
 		t.Errorf("Pin name should be \"Water\", instead it is \"%s\"", action.Pin)
