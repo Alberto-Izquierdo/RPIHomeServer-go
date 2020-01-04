@@ -68,7 +68,7 @@ func LaunchTelegramBot(config configuration_loader.InitialConfiguration, outputC
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "User not authorized :(")
 				msg.ReplyToMessageID = update.Message.MessageID
 				bot.Send(msg)
-				fmt.Println("User " + strconv.Itoa(update.Message.From.ID) + " tried to send a message (not authorized)")
+				fmt.Println("User " + strconv.FormatInt(update.Message.Chat.ID, 10) + " tried to send a message (not authorized)")
 			}
 		}
 	}
@@ -83,6 +83,7 @@ func getMessagesAvailableMarkup(_ string, config configuration_loader.InitialCon
 	msg := tgbotapi.NewMessage(chatId, "Welcome to rpi bot")
 	msg.ReplyToMessageID = replyToMessageId
 	msg.ReplyMarkup = markup
+	fmt.Println("User with id \"" + strconv.FormatInt(chatId, 10) + "\" requested message types")
 	return msg
 }
 
