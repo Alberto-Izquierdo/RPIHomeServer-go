@@ -91,44 +91,40 @@ func turnPinOn(message string, config configuration_loader.InitialConfiguration,
 	firstPart := strings.Fields(message)[0]
 	pin := firstPart[4 : len(firstPart)-2]
 	outputChannel <- configuration_loader.Action{pin, true}
-	return processGPIOResponse(pin, "On", chatId, replyToMessageId)
+	response := pin + " turned On"
+	return buildMessage(response, chatId, replyToMessageId)
 }
 
 func turnPinOff(message string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, outputChannel chan configuration_loader.Action) tgbotapi.MessageConfig {
 	firstPart := strings.Fields(message)[0]
 	pin := firstPart[4 : len(firstPart)-3]
 	outputChannel <- configuration_loader.Action{pin, false}
-	return processGPIOResponse(pin, "Off", chatId, replyToMessageId)
+	response := pin + " turned Off"
+	return buildMessage(response, chatId, replyToMessageId)
 }
 
 func turnPinOnAndOff(message string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, outputChannel chan configuration_loader.Action) tgbotapi.MessageConfig {
 	fields := strings.Fields(message)
 	if len(fields) < 2 {
-		return errorMessage("OnAndOff messages should contain at least two words (action and time)", chatId, replyToMessageId)
+		return buildMessage("OnAndOff messages should contain at least two words (action and time)", chatId, replyToMessageId)
 	}
 	firstPart := fields[0]
 	pin := firstPart[4 : len(firstPart)-8]
 	duration, err := time.ParseDuration(fields[1])
 	if err != nil {
-		return errorMessage("Time not set properly", chatId, replyToMessageId)
+		return buildMessage("Time not set properly", chatId, replyToMessageId)
 	}
 	outputChannel <- configuration_loader.Action{pin, true}
 	time.Sleep(duration)
 	outputChannel <- configuration_loader.Action{pin, false}
-	return processGPIOResponse(pin, "OnAndOff", chatId, replyToMessageId)
+	response := pin + " turned OnAndOff"
+	return buildMessage(response, chatId, replyToMessageId)
 }
 
 type messageHandlingFunc func(action string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, outputChannel chan configuration_loader.Action) tgbotapi.MessageConfig
 
-func processGPIOResponse(pin string, state string, chatId int64, replyToMessageId int) tgbotapi.MessageConfig {
-	response := pin + " turned " + state
-	msg := tgbotapi.NewMessage(chatId, response)
-	msg.ReplyToMessageID = replyToMessageId
-	return msg
-}
-
-func errorMessage(errorMsg string, chatId int64, replyToMessageId int) tgbotapi.MessageConfig {
-	msg := tgbotapi.NewMessage(chatId, errorMsg)
+func buildMessage(msgContent string, chatId int64, replyToMessageId int) tgbotapi.MessageConfig {
+	msg := tgbotapi.NewMessage(chatId, msgContent)
 	msg.ReplyToMessageID = replyToMessageId
 	return msg
 }

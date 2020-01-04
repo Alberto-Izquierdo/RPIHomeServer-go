@@ -9,6 +9,20 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
+func TestWrongConfig(t *testing.T) {
+	telegramOutputChannel := make(chan configuration_loader.Action)
+	telegramExitChannel := make(chan bool)
+	var config configuration_loader.InitialConfiguration
+	var telegramConfig configuration_loader.TelegramBotConfiguration
+	config.TelegramBotConfiguration = &telegramConfig
+	config.TelegramBotConfiguration.TelegramBotToken = "asdf"
+	config.TelegramBotConfiguration.AuthorizedUsers = append(config.TelegramBotConfiguration.AuthorizedUsers, 1234, 5678)
+	err := LaunchTelegramBot(config, telegramOutputChannel, telegramExitChannel)
+	if err == nil {
+		t.Errorf("Wrong config should return an error")
+	}
+}
+
 func TestLaunchTelegramBot(t *testing.T) {
 	telegramOutputChannel := make(chan configuration_loader.Action)
 	telegramExitChannel := make(chan bool)
@@ -17,6 +31,7 @@ func TestLaunchTelegramBot(t *testing.T) {
 	config.TelegramBotConfiguration = &telegramConfig
 	config.TelegramBotConfiguration.TelegramBotToken = "153667468:AAHlSHlMqSt1f_uFmVRJbm5gntu2HI4WW8I"
 	config.TelegramBotConfiguration.AuthorizedUsers = append(config.TelegramBotConfiguration.AuthorizedUsers, 1234, 5678)
+	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Light", 1})
 	go func() {
 		time.Sleep(2 * time.Second)
 		close(telegramExitChannel)
@@ -109,6 +124,14 @@ func TestTurnPinOnAndOff(t *testing.T) {
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Light", 1})
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Water", 2})
 	telegramOutputChannel := make(chan configuration_loader.Action)
+	msg := turnPinOnAndOff("turnLightOnAndOff", config, 0, 0, telegramOutputChannel)
+	if msg.Text != "OnAndOff messages should contain at least two words (action and time)" {
+		t.Errorf("Wrong message should return an error")
+	}
+	msg = turnPinOnAndOff("turnLightOnAndOff 40w", config, 0, 0, telegramOutputChannel)
+	if msg.Text != "Time not set properly" {
+		t.Errorf("Wrong time format should return an error")
+	}
 	go func() {
 		turnPinOnAndOff("turnLightOnAndOff 1s", config, 0, 0, telegramOutputChannel)
 	}()
