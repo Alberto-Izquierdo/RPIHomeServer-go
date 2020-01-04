@@ -69,7 +69,7 @@ func LaunchTelegramBot(config configuration_loader.InitialConfiguration, outputC
 	return nil
 }
 
-func getMessagesAvailableMarkup(_ string, config configuration_loader.InitialConfiguration, ChatID int64, ReplyToMessageID int, outputChannel chan configuration_loader.Action, inputChannel chan string) tgbotapi.MessageConfig {
+func getMessagesAvailableMarkup(_ string, config configuration_loader.InitialConfiguration, ChatID int64, ReplyToMessageID int, _ chan configuration_loader.Action, _ chan string) tgbotapi.MessageConfig {
 	markup := tgbotapi.InlineKeyboardMarkup{
 		InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{},
 	}
@@ -82,6 +82,7 @@ func getMessagesAvailableMarkup(_ string, config configuration_loader.InitialCon
 	msg := tgbotapi.NewMessage(ChatID, "Action not available")
 	msg.ReplyToMessageID = ReplyToMessageID
 	msg.ReplyMarkup = edit
+	fmt.Println("Number: ", len(markup.InlineKeyboard))
 	return msg
 }
 
