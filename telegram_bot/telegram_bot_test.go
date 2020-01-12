@@ -11,13 +11,14 @@ import (
 
 func TestWrongConfig(t *testing.T) {
 	telegramOutputChannel := make(chan configuration_loader.Action)
+	telegramInputChannel := make(chan string)
 	telegramExitChannel := make(chan bool)
 	var config configuration_loader.InitialConfiguration
 	var telegramConfig configuration_loader.TelegramBotConfiguration
 	config.TelegramBotConfiguration = &telegramConfig
 	config.TelegramBotConfiguration.TelegramBotToken = "asdf"
 	config.TelegramBotConfiguration.AuthorizedUsers = append(config.TelegramBotConfiguration.AuthorizedUsers, 1234, 5678)
-	err := LaunchTelegramBot(config, telegramOutputChannel, telegramExitChannel)
+	err := LaunchTelegramBot(config, telegramInputChannel, telegramOutputChannel, telegramExitChannel)
 	if err == nil {
 		t.Errorf("Wrong config should return an error")
 	}
@@ -25,6 +26,7 @@ func TestWrongConfig(t *testing.T) {
 
 func TestLaunchTelegramBot(t *testing.T) {
 	telegramOutputChannel := make(chan configuration_loader.Action)
+	telegramInputChannel := make(chan string)
 	telegramExitChannel := make(chan bool)
 	var config configuration_loader.InitialConfiguration
 	var telegramConfig configuration_loader.TelegramBotConfiguration
@@ -36,14 +38,12 @@ func TestLaunchTelegramBot(t *testing.T) {
 		time.Sleep(2 * time.Second)
 		close(telegramExitChannel)
 	}()
-	LaunchTelegramBot(config, telegramOutputChannel, telegramExitChannel)
+	LaunchTelegramBot(config, telegramInputChannel, telegramOutputChannel, telegramExitChannel)
 }
 
 func TestGetMessagesAvailableMarkup(t *testing.T) {
-	var config configuration_loader.InitialConfiguration
-	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Light", 1})
-	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Water", 2})
-	msg := getMessagesAvailableMarkup("", config, 0, 0, nil)
+	messages := []string{"Light", "Water"}
+	msg := createMarkupForMessages(messages, 0, 0)
 	if markup, ok := msg.ReplyMarkup.(tgbotapi.ReplyKeyboardMarkup); ok {
 		if len(markup.Keyboard) != 2 {
 			t.Errorf("The message should contain two rows (light and water)")

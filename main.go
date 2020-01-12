@@ -43,21 +43,33 @@ func main() {
 		}
 	*/
 	actionsChannel := make(chan configuration_loader.Action)
+	var telegramInputChannel chan string = nil
 	var exitChannels []chan bool
 	if len(config.AutomaticMessages) > 0 {
 		exitChannels = append(exitChannels, make(chan bool))
 		go message_generator.Run(config.AutomaticMessages, actionsChannel, exitChannels[len(exitChannels)-1])
 	}
 	if config.TelegramBotConfiguration != nil {
+		telegramInputChannel = make(chan string)
 		exitChannels = append(exitChannels, make(chan bool))
-		go telegram_bot.LaunchTelegramBot(config, actionsChannel, exitChannels[len(exitChannels)-1])
+		go telegram_bot.LaunchTelegramBot(config, telegramInputChannel, actionsChannel, exitChannels[len(exitChannels)-1])
 	}
 	fmt.Println("Waiting for messages")
 	var exit = false
 	for !exit {
 		select {
 		case action := <-actionsChannel:
-			gpio_manager.SetPinState(action.Pin, action.State)
+			if action.Pin == "start" {
+				// TODO: call grpc
+				messages := ""
+				for _, value := range config.PinsActive {
+					messages += value.Name + " "
+				}
+				telegramInputChannel <- messages
+			} else {
+				// TODO: check if action is in this machine, if not, search in other connected machines
+				gpio_manager.SetPinState(action.Pin, action.State)
+			}
 		case exit = <-mainExitChannel:
 			for _, exitChannel := range exitChannels {
 				exitChannel <- true
