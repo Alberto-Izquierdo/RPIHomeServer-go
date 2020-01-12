@@ -71,6 +71,6 @@ func TestGetPinsAvailable(t *testing.T) {
 		t.Errorf("Error, the pin should be \"test\" and it is \"%s\"", pinsActive[0])
 	}
 	if pinsActive[1] != "test2" {
-		t.Errorf("Error, the pin should be \"test2\" and it is \"%s\"", pinsActive[0])
+		t.Errorf("Error, the pin should be \"test2\" and it is \"%s\"", pinsActive[1])
 	}
 }
