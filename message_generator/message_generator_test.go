@@ -8,8 +8,8 @@ import (
 )
 
 func TestActionTwoSecondsDelay(t *testing.T) {
-	var actionTimes = []configuration_loader.ActionTime{
-		configuration_loader.ActionTime{configuration_loader.Action{"light", true}, configuration_loader.MyTime(time.Now().Add(time.Second * 5))},
+	actionTimes := []configuration_loader.ActionTime{
+		configuration_loader.ActionTime{configuration_loader.Action{"light", true}, configuration_loader.MyTime(time.Now().Add(time.Second * 2))},
 		configuration_loader.ActionTime{configuration_loader.Action{"light", false}, configuration_loader.MyTime(time.Now().Add(time.Minute * -10))},
 	}
 	c := make(chan configuration_loader.Action)

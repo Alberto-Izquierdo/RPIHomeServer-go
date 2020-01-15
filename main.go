@@ -68,7 +68,24 @@ func main() {
 				telegramInputChannel <- messages
 			} else {
 				// TODO: check if action is in this machine, if not, search in other connected machines
-				gpio_manager.SetPinState(action.Pin, action.State)
+				stateChanged, err := gpio_manager.SetPinState(action.Pin, action.State)
+				if err != nil {
+					telegramInputChannel <- err.Error()
+				} else {
+					if stateChanged {
+						if action.State {
+							telegramInputChannel <- action.Pin + " turned On"
+						} else {
+							telegramInputChannel <- action.Pin + " turned Off"
+						}
+					} else {
+						if action.State {
+							telegramInputChannel <- action.Pin + " did not change (was already On)"
+						} else {
+							telegramInputChannel <- action.Pin + " did not change (was already Off)"
+						}
+					}
+				}
 			}
 		case exit = <-mainExitChannel:
 			for _, exitChannel := range exitChannels {

@@ -74,19 +74,22 @@ func TestTurnPinOn(t *testing.T) {
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Light", 1})
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Water", 2})
 	telegramOutputChannel := make(chan configuration_loader.Action)
+	telegramInputChannel := make(chan string)
 	go func() {
-		turnPinOn("turnLightOn", config, 0, 0, telegramOutputChannel)
+		turnPinOn("turnLightOn", config, 0, 0, telegramOutputChannel, telegramInputChannel)
 	}()
 	action := <-telegramOutputChannel
+	telegramInputChannel <- "test"
 	if action.Pin != "Light" {
 		t.Errorf("Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
 	} else if action.State != true {
 		t.Errorf("Action's state should be true")
 	}
 	go func() {
-		turnPinOn("turnWaterOn", config, 0, 0, telegramOutputChannel)
+		turnPinOn("turnWaterOn", config, 0, 0, telegramOutputChannel, telegramInputChannel)
 	}()
 	action = <-telegramOutputChannel
+	telegramInputChannel <- "test"
 	if action.Pin != "Water" {
 		t.Errorf("Pin name should be \"Water\", instead it is \"%s\"", action.Pin)
 	} else if action.State != true {
@@ -99,19 +102,22 @@ func TestTurnPinOff(t *testing.T) {
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Light", 1})
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Water", 2})
 	telegramOutputChannel := make(chan configuration_loader.Action)
+	telegramInputChannel := make(chan string)
 	go func() {
-		turnPinOff("turnLightOff", config, 0, 0, telegramOutputChannel)
+		turnPinOff("turnLightOff", config, 0, 0, telegramOutputChannel, telegramInputChannel)
 	}()
 	action := <-telegramOutputChannel
+	telegramInputChannel <- "test"
 	if action.Pin != "Light" {
 		t.Errorf("Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
 	} else if action.State != false {
 		t.Errorf("Action's state should be true")
 	}
 	go func() {
-		turnPinOff("turnWaterOff", config, 0, 0, telegramOutputChannel)
+		turnPinOff("turnWaterOff", config, 0, 0, telegramOutputChannel, telegramInputChannel)
 	}()
 	action = <-telegramOutputChannel
+	telegramInputChannel <- "test"
 	if action.Pin != "Water" {
 		t.Errorf("Pin name should be \"Water\", instead it is \"%s\"", action.Pin)
 	} else if action.State != false {
@@ -124,24 +130,27 @@ func TestTurnPinOnAndOff(t *testing.T) {
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Light", 1})
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Water", 2})
 	telegramOutputChannel := make(chan configuration_loader.Action)
-	msg := turnPinOnAndOff("turnLightOnAndOff", config, 0, 0, telegramOutputChannel)
+	telegramInputChannel := make(chan string)
+	msg := turnPinOnAndOff("turnLightOnAndOff", config, 0, 0, telegramOutputChannel, telegramInputChannel)
 	if msg.Text != "OnAndOff messages should contain at least two words (action and time)" {
 		t.Errorf("Wrong message should return an error")
 	}
-	msg = turnPinOnAndOff("turnLightOnAndOff 40w", config, 0, 0, telegramOutputChannel)
+	msg = turnPinOnAndOff("turnLightOnAndOff 40w", config, 0, 0, telegramOutputChannel, telegramInputChannel)
 	if msg.Text != "Time not set properly" {
 		t.Errorf("Wrong time format should return an error")
 	}
 	go func() {
-		turnPinOnAndOff("turnLightOnAndOff 1s", config, 0, 0, telegramOutputChannel)
+		turnPinOnAndOff("turnLightOnAndOff 1s", config, 0, 0, telegramOutputChannel, telegramInputChannel)
 	}()
 	action := <-telegramOutputChannel
+	telegramInputChannel <- "test"
 	if action.Pin != "Light" {
 		t.Errorf("Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
 	} else if action.State != true {
 		t.Errorf("Action's state should be false")
 	}
 	action = <-telegramOutputChannel
+	telegramInputChannel <- "test"
 	if action.Pin != "Light" {
 		t.Errorf("Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
 	} else if action.State != false {

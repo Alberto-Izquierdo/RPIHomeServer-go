@@ -38,20 +38,20 @@ func Setup(pins []PairNamePin) (err error) {
 	return err
 }
 
-func SetPinState(pin string, state bool) {
+func SetPinState(pin string, state bool) (bool, error) {
 	if state {
-		TurnPinOn(pin)
+		return TurnPinOn(pin)
 	} else {
-		TurnPinOff(pin)
+		return TurnPinOff(pin)
 	}
 }
 
-func TurnPinOn(pin string) {
-	manager.turnPinOn(pin)
+func TurnPinOn(pin string) (bool, error) {
+	return manager.turnPinOn(pin)
 }
 
-func TurnPinOff(pin string) {
-	manager.turnPinOff(pin)
+func TurnPinOff(pin string) (bool, error) {
+	return manager.turnPinOff(pin)
 }
 
 func ClearAllPins() {
@@ -78,28 +78,38 @@ type gpioManager struct {
 	gpioAvailable bool
 }
 
-func (m *gpioManager) turnPinOn(pin string) {
+func (m *gpioManager) turnPinOn(pin string) (stateChanged bool, err error) {
+	err = nil
+	stateChanged = false
 	if v, ok := m.PinStates[pin]; !ok {
-		fmt.Println("[gpio_manager]: Pin ", pin, " not set in the initial configuration")
+		err = errors.New("[gpio_manager]: Pin " + pin + " not set in the initial configuration")
 	} else if !v.state {
 		if m.gpioAvailable {
 			rpio.Pin(v.pin).High()
 		}
-		m.PinStates[pin].state = true
-		fmt.Println("Pin ", pin, " turned on")
+		if !m.PinStates[pin].state {
+			stateChanged = true
+			m.PinStates[pin].state = true
+			fmt.Println("Pin ", pin, " turned on")
+		}
 	}
+	return stateChanged, err
 }
 
-func (m *gpioManager) turnPinOff(pin string) {
+func (m *gpioManager) turnPinOff(pin string) (stateChanged bool, err error) {
 	if v, ok := m.PinStates[pin]; !ok {
-		fmt.Println("[gpio_manager]: Pin ", pin, " not set in the initial configuration")
+		err = errors.New("[gpio_manager]: Pin " + pin + " not set in the initial configuration")
 	} else if v.state {
 		if m.gpioAvailable {
 			rpio.Pin(v.pin).Low()
 		}
-		m.PinStates[pin].state = false
-		fmt.Println("Pin ", pin, " turned off")
+		if m.PinStates[pin].state {
+			stateChanged = true
+			m.PinStates[pin].state = false
+			fmt.Println("Pin ", pin, " turned off")
+		}
 	}
+	return stateChanged, err
 }
 
 func (m *gpioManager) clearAllPins() {
