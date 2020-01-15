@@ -11,6 +11,7 @@ import (
 func Run(actions []configuration_loader.ActionTime, outputChannel chan configuration_loader.Action, exitChannel chan bool) {
 	queue := ordered_queue.OrderedQueue{}
 	if len(actions) == 0 {
+		fmt.Println("No actions to launch")
 		return
 	}
 	for _, actionTime := range actions {

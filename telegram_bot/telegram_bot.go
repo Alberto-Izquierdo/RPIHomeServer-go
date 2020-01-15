@@ -54,7 +54,7 @@ func LaunchTelegramBot(config configuration_loader.InitialConfiguration, inputCh
 				key := strings.Fields(update.Message.Text)[0]
 				if actionFunction, ok := actionsMap[key]; ok {
 					go func() {
-						msg := actionFunction(update.Message.Text, config, update.Message.Chat.ID, update.Message.MessageID, outputChannel)
+						msg := actionFunction(update.Message.Text, config, update.Message.Chat.ID, update.Message.MessageID, outputChannel, inputChannel)
 						bot.Send(msg)
 					}()
 				} else {
@@ -80,23 +80,23 @@ func LaunchTelegramBot(config configuration_loader.InitialConfiguration, inputCh
 	return nil
 }
 
-func turnPinOn(message string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, outputChannel chan configuration_loader.Action) tgbotapi.MessageConfig {
+func turnPinOn(message string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, outputChannel chan configuration_loader.Action, inputChannel chan string) tgbotapi.MessageConfig {
 	firstPart := strings.Fields(message)[0]
 	pin := firstPart[4 : len(firstPart)-2]
 	outputChannel <- configuration_loader.Action{pin, true}
-	response := pin + " turned On"
+	response := <-inputChannel
 	return buildMessage(response, chatId, replyToMessageId)
 }
 
-func turnPinOff(message string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, outputChannel chan configuration_loader.Action) tgbotapi.MessageConfig {
+func turnPinOff(message string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, outputChannel chan configuration_loader.Action, inputChannel chan string) tgbotapi.MessageConfig {
 	firstPart := strings.Fields(message)[0]
 	pin := firstPart[4 : len(firstPart)-3]
 	outputChannel <- configuration_loader.Action{pin, false}
-	response := pin + " turned Off"
+	response := <-inputChannel
 	return buildMessage(response, chatId, replyToMessageId)
 }
 
-func turnPinOnAndOff(message string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, outputChannel chan configuration_loader.Action) tgbotapi.MessageConfig {
+func turnPinOnAndOff(message string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, outputChannel chan configuration_loader.Action, inputChannel chan string) tgbotapi.MessageConfig {
 	fields := strings.Fields(message)
 	if len(fields) < 2 {
 		return buildMessage("OnAndOff messages should contain at least two words (action and time)", chatId, replyToMessageId)
@@ -108,13 +108,15 @@ func turnPinOnAndOff(message string, config configuration_loader.InitialConfigur
 		return buildMessage("Time not set properly", chatId, replyToMessageId)
 	}
 	outputChannel <- configuration_loader.Action{pin, true}
+	<-inputChannel
 	time.Sleep(duration)
 	outputChannel <- configuration_loader.Action{pin, false}
+	<-inputChannel
 	response := pin + " turned OnAndOff"
 	return buildMessage(response, chatId, replyToMessageId)
 }
 
-type messageHandlingFunc func(action string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, outputChannel chan configuration_loader.Action) tgbotapi.MessageConfig
+type messageHandlingFunc func(action string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, outputChannel chan configuration_loader.Action, inputChannel chan string) tgbotapi.MessageConfig
 
 func buildMessage(msgContent string, chatId int64, replyToMessageId int) tgbotapi.MessageConfig {
 	msg := tgbotapi.NewMessage(chatId, msgContent)

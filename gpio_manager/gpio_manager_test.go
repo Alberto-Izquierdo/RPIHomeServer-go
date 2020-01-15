@@ -15,20 +15,36 @@ func TestGpioManager(t *testing.T) {
 	if pinState := GetPinState("test"); pinState != false {
 		t.Errorf("GetPinState(%v) == %v, want %v", "test", pinState, false)
 	}
-	TurnPinOn("test")
-	if pinState := GetPinState("test"); pinState != true {
+	stateChanged, err := TurnPinOn("test")
+	if err != nil {
+		t.Errorf("TurnPinOn(%v) should not return an error", "test")
+	} else if !stateChanged {
+		t.Errorf("TurnPinOn(%v) should have changed the state", "test")
+	} else if pinState := GetPinState("test"); pinState != true {
 		t.Errorf("GetPinState(%v) == %v, want %v", "test", pinState, true)
 	}
-	TurnPinOff("test")
-	if pinState := GetPinState("test"); pinState != false {
+	stateChanged, err = TurnPinOff("test")
+	if err != nil {
+		t.Errorf("TurnPinOff(%v) should not return an error", "test")
+	} else if !stateChanged {
+		t.Errorf("TurnPinOff(%v) should have changed the state", "test")
+	} else if pinState := GetPinState("test"); pinState != false {
 		t.Errorf("GetPinState(%v) == %v, want %v", "test", pinState, false)
 	}
-	SetPinState("test", true)
-	if pinState := GetPinState("test"); pinState != true {
+	stateChanged, err = SetPinState("test", true)
+	if err != nil {
+		t.Errorf("SetPinState(%v, true) should not return an error", "test")
+	} else if !stateChanged {
+		t.Errorf("SetPinState(%v, true) should have changed the state", "test")
+	} else if pinState := GetPinState("test"); pinState != true {
 		t.Errorf("GetPinState(%v) == %v, want %v", "test", pinState, true)
 	}
-	SetPinState("test", false)
-	if pinState := GetPinState("test"); pinState != false {
+	stateChanged, err = SetPinState("test", false)
+	if err != nil {
+		t.Errorf("SetPinState(%v, false) should not return an error", "test")
+	} else if !stateChanged {
+		t.Errorf("SetPinState(%v, false) should have changed the state", "test")
+	} else if pinState := GetPinState("test"); pinState != false {
 		t.Errorf("GetPinState(%v) == %v, want %v", "test", pinState, false)
 	}
 }
