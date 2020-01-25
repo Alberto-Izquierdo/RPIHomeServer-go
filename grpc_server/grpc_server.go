@@ -4,25 +4,31 @@ import (
 	"context"
 	"errors"
 	"net"
+	"strconv"
 
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
 	messages_protocol "github.com/Alberto-Izquierdo/RPIHomeServer-go/messages"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/peer"
 )
 
 func SetupAndRun(config configuration_loader.InitialConfiguration, outputChannel chan configuration_loader.Action, exitChannel chan bool) error {
 	if config.GRPCServerConfiguration == nil {
 		return errors.New("Server parameters not set in the configuration file")
 	}
-	lis, err := net.Listen("tcp", config.GRPCServerConfiguration.Port)
+	if config.GRPCServerConfiguration.Port == 0 {
+		return errors.New("Server port not set in the configuration file")
+	}
+	lis, err := net.Listen("tcp", ":"+strconv.Itoa(config.GRPCServerConfiguration.Port))
 	if err != nil {
 		return errors.New("failed to listen: " + err.Error())
 	}
 	server := grpc.NewServer()
-	messages_protocol.RegisterRPIHomeServerServiceServer(server, &rpiHomeServer{nil, outputChannel})
-	if err := server.Serve(lis); err != nil {
-		return errors.New("failed to serve: " + err.Error())
+	pinsRegistered := make([]string, len(config.PinsActive))
+	for _, pin := range config.PinsActive {
+		pinsRegistered = append(pinsRegistered, pin.Name)
 	}
+	messages_protocol.RegisterRPIHomeServerServiceServer(server, &rpiHomeServer{nil, outputChannel, pinsRegistered, make(map[net.Addr][]string)})
 	go run(server, &lis, exitChannel)
 	return nil
 }
@@ -35,12 +41,34 @@ func run(server *grpc.Server, listener *net.Listener, exitChannel chan bool) {
 
 type rpiHomeServer struct {
 	messages_protocol.RPIHomeServerServiceServer
-	outputChannel chan configuration_loader.Action
+	outputChannel     chan configuration_loader.Action
+	pinsRegistered    []string
+	clientsRegistered map[net.Addr][]string
 }
 
 func (s *rpiHomeServer) RegisterToServer(ctx context.Context, message *messages_protocol.RegistrationMessage) (*messages_protocol.RegistrationResult, error) {
 	result := new(messages_protocol.RegistrationResult)
-	code := messages_protocol.RegistrationStatusCodes_Ok
-	result.Result = &code
+	pinsRepeated := []string{}
+	for _, messagePin := range message.PinsToHandle {
+		for _, configPin := range s.pinsRegistered {
+			if messagePin == configPin {
+				pinsRepeated = append(pinsRepeated, messagePin)
+			}
+		}
+	}
+	if len(pinsRepeated) == 0 {
+		p, ok := peer.FromContext(ctx)
+		if !ok {
+			return nil, errors.New("Error while extracting the peer from context")
+		}
+		s.clientsRegistered[p.Addr] = message.PinsToHandle
+		code := messages_protocol.RegistrationStatusCodes_Ok
+		result.Result = &code
+		s.pinsRegistered = append(s.pinsRegistered, message.PinsToHandle...)
+	} else {
+		code := messages_protocol.RegistrationStatusCodes_PinNameAlreadyRegistered
+		result.Result = &code
+		result.PinsRepeated = pinsRepeated
+	}
 	return result, nil
 }
