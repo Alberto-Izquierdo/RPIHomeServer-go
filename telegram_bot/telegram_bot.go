@@ -36,13 +36,7 @@ func LaunchTelegramBot(config configuration_loader.InitialConfiguration, inputCh
 			return nil
 		case update := <-updates:
 			if update.Message == nil {
-				select {
-				case _ = <-exitChannel:
-					fmt.Println("Exit signal received, exiting from telegram bot update")
-					return nil
-				default:
-					continue
-				}
+				continue
 			}
 			userAuthorized := false
 			for _, user := range config.TelegramBotConfiguration.AuthorizedUsers {
