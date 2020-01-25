@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func SetupAndRun(config configuration_loader.InitialConfiguration, exitChannel chan bool, outputChannel chan configuration_loader.Action) error {
+func SetupAndRun(config configuration_loader.InitialConfiguration, outputChannel chan configuration_loader.Action, exitChannel chan bool) error {
 	if config.GRPCServerConfiguration == nil {
 		return errors.New("Server parameters not set in the configuration file")
 	}
