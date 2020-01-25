@@ -28,10 +28,15 @@ type Action struct {
 	State bool
 }
 
+type GRPCServerConfiguration struct {
+	Port string
+}
+
 type InitialConfiguration struct {
 	GRPCServerIp             string
 	PinsActive               []gpio_manager.PairNamePin
 	TelegramBotConfiguration *TelegramBotConfiguration
+	GRPCServerConfiguration  *GRPCServerConfiguration
 	AutomaticMessages        []ActionTime
 }
 
