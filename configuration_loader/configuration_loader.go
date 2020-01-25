@@ -29,7 +29,7 @@ type Action struct {
 }
 
 type GRPCServerConfiguration struct {
-	Port string
+	Port int
 }
 
 type InitialConfiguration struct {
