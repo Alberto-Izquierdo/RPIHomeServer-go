@@ -9,6 +9,7 @@ import (
 
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/gpio_manager"
+	"github.com/Alberto-Izquierdo/RPIHomeServer-go/grpc_server"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/message_generator"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/telegram_bot"
 )
@@ -53,6 +54,10 @@ func main() {
 		telegramInputChannel = make(chan string)
 		exitChannels = append(exitChannels, make(chan bool))
 		go telegram_bot.LaunchTelegramBot(config, telegramInputChannel, actionsChannel, exitChannels[len(exitChannels)-1])
+	}
+	if config.GRPCServerConfiguration != nil {
+		exitChannels = append(exitChannels, make(chan bool))
+		grpc_server.SetupAndRun(config, actionsChannel, exitChannels[len(exitChannels)-1])
 	}
 	fmt.Println("Waiting for messages")
 	var exit = false
