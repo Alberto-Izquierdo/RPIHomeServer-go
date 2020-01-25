@@ -42,7 +42,7 @@ func TestRegisterToServer(t *testing.T) {
 	conn := net.TCPConn{}
 	p := peer.Peer{conn.LocalAddr(), nil}
 	ctx := peer.NewContext(context.TODO(), &p)
-	server := rpiHomeServer{nil, nil, []string{}, make(map[net.Addr][]string)}
+	server := rpiHomeServer{nil, nil, make(map[net.Addr][]string)}
 	message0 := messages_protocol.RegistrationMessage{}
 	message0.PinsToHandle = []string{"pin1"}
 	result, _ := server.RegisterToServer(ctx, &message0)
@@ -50,12 +50,15 @@ func TestRegisterToServer(t *testing.T) {
 		t.Errorf("Message with no repeated pins should return an ok code, instead it is %d", *result.Result)
 	} else if len(result.PinsRepeated) != 0 {
 		t.Errorf("Message with no repeated pins should return an empty list of pins repeated")
-	} else if len(server.pinsRegistered) != 1 {
-		t.Errorf("After a successfull registration, the pins registered should contain one element, instead it contains %d", len(server.pinsRegistered))
-	} else if server.pinsRegistered[0] != "pin1" {
-		t.Errorf("After a successfull registration, the pins registered should contain the element \"pin1\"")
 	} else if len(server.clientsRegistered) != 1 {
 		t.Errorf("After a successfull registration, the clients registered should contain one element, instead it contains %d", len(server.clientsRegistered))
+	} else {
+		pins := server.clientsRegistered[conn.LocalAddr()]
+		if len(pins) != 1 {
+			t.Errorf("After a successfull registration, the pins registered for the client should contain one element, instead it contains %d", len(pins))
+		} else if pins[0] != "pin1" {
+			t.Errorf("After a successfull registration, the first pin registered should be \"pin1\", instead it is %s", pins[0])
+		}
 	}
 	message1 := messages_protocol.RegistrationMessage{}
 	message1.PinsToHandle = []string{"pin1"}
@@ -66,5 +69,11 @@ func TestRegisterToServer(t *testing.T) {
 		t.Errorf("Message with repeated pins should return the name of the pins")
 	} else if len(server.clientsRegistered) != 1 {
 		t.Errorf("After a filed registration, the clients registered should contain one element, instead it contains %d", len(server.clientsRegistered))
+	}
+
+	// Unregister
+	server.UnregisterToServer(ctx, &messages_protocol.Empty{})
+	if len(server.clientsRegistered) != 0 {
+		t.Errorf("After a successfull unregistering, the clients registered should contain zero elements, instead it contains %d", len(server.clientsRegistered))
 	}
 }
