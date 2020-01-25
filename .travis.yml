@@ -22,5 +22,5 @@ script:
     env GOOS=linux GOARCH=arm GOARM=5 go build;
     fi
   - if [ $TARGET == "desktop" ]; then
-    go test ./gpio_manager ./configuration_loader ./telegram_bot ./message_generator -cover;
+    go test ./gpio_manager ./configuration_loader ./telegram_bot ./message_generator ./grpc_server -cover;
     fi
