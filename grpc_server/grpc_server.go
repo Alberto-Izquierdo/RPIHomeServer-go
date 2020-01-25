@@ -28,7 +28,7 @@ func SetupAndRun(config configuration_loader.InitialConfiguration, outputChannel
 	for _, pin := range config.PinsActive {
 		pinsRegistered = append(pinsRegistered, pin.Name)
 	}
-	messages_protocol.RegisterRPIHomeServerServiceServer(server, &rpiHomeServer{nil, outputChannel, make(map[net.Addr][]string)})
+	messages_protocol.RegisterRPIHomeServerServiceServer(server, &rpiHomeServer{nil, outputChannel, make(map[net.Addr][]string), make(map[net.Addr][]configuration_loader.Action)})
 	go run(server, &lis, exitChannel)
 	return nil
 }
@@ -43,6 +43,7 @@ type rpiHomeServer struct {
 	messages_protocol.RPIHomeServerServiceServer
 	outputChannel     chan configuration_loader.Action
 	clientsRegistered map[net.Addr][]string
+	actionsToPerform  map[net.Addr][]configuration_loader.Action
 }
 
 func (s *rpiHomeServer) RegisterToServer(ctx context.Context, message *messages_protocol.RegistrationMessage) (*messages_protocol.RegistrationResult, error) {
@@ -79,5 +80,22 @@ func (s *rpiHomeServer) UnregisterToServer(ctx context.Context, empty *messages_
 		return nil, errors.New("Error while extracting the peer from context")
 	}
 	delete(s.clientsRegistered, p.Addr)
+	delete(s.actionsToPerform, p.Addr)
 	return nil, nil
+}
+
+func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_protocol.Empty) (*messages_protocol.ActionsToPerform, error) {
+	p, ok := peer.FromContext(ctx)
+	if !ok {
+		return nil, errors.New("Error while extracting the peer from context")
+	}
+	actions := messages_protocol.ActionsToPerform{}
+	for _, v := range s.actionsToPerform[p.Addr] {
+		action := messages_protocol.PinStatePair{}
+		action.Pin = &v.Pin
+		action.State = &v.State
+		actions.Actions = append(actions.Actions, &action)
+	}
+	delete(s.actionsToPerform, p.Addr)
+	return &actions, nil
 }
