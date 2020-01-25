@@ -28,7 +28,7 @@ func SetupAndRun(config configuration_loader.InitialConfiguration, outputChannel
 	for _, pin := range config.PinsActive {
 		pinsRegistered = append(pinsRegistered, pin.Name)
 	}
-	messages_protocol.RegisterRPIHomeServerServiceServer(server, &rpiHomeServer{nil, outputChannel, pinsRegistered, make(map[net.Addr][]string)})
+	messages_protocol.RegisterRPIHomeServerServiceServer(server, &rpiHomeServer{nil, outputChannel, make(map[net.Addr][]string)})
 	go run(server, &lis, exitChannel)
 	return nil
 }
@@ -42,7 +42,6 @@ func run(server *grpc.Server, listener *net.Listener, exitChannel chan bool) {
 type rpiHomeServer struct {
 	messages_protocol.RPIHomeServerServiceServer
 	outputChannel     chan configuration_loader.Action
-	pinsRegistered    []string
 	clientsRegistered map[net.Addr][]string
 }
 
@@ -50,9 +49,11 @@ func (s *rpiHomeServer) RegisterToServer(ctx context.Context, message *messages_
 	result := new(messages_protocol.RegistrationResult)
 	pinsRepeated := []string{}
 	for _, messagePin := range message.PinsToHandle {
-		for _, configPin := range s.pinsRegistered {
-			if messagePin == configPin {
-				pinsRepeated = append(pinsRepeated, messagePin)
+		for _, clientPins := range s.clientsRegistered {
+			for _, configPin := range clientPins {
+				if messagePin == configPin {
+					pinsRepeated = append(pinsRepeated, messagePin)
+				}
 			}
 		}
 	}
@@ -64,11 +65,19 @@ func (s *rpiHomeServer) RegisterToServer(ctx context.Context, message *messages_
 		s.clientsRegistered[p.Addr] = message.PinsToHandle
 		code := messages_protocol.RegistrationStatusCodes_Ok
 		result.Result = &code
-		s.pinsRegistered = append(s.pinsRegistered, message.PinsToHandle...)
 	} else {
 		code := messages_protocol.RegistrationStatusCodes_PinNameAlreadyRegistered
 		result.Result = &code
 		result.PinsRepeated = pinsRepeated
 	}
 	return result, nil
+}
+
+func (s *rpiHomeServer) UnregisterToServer(ctx context.Context, empty *messages_protocol.Empty) (*messages_protocol.Empty, error) {
+	p, ok := peer.FromContext(ctx)
+	if !ok {
+		return nil, errors.New("Error while extracting the peer from context")
+	}
+	delete(s.clientsRegistered, p.Addr)
+	return nil, nil
 }
