@@ -42,7 +42,7 @@ func TestRegisterToServer(t *testing.T) {
 	conn := net.TCPConn{}
 	p := peer.Peer{conn.LocalAddr(), nil}
 	ctx := peer.NewContext(context.TODO(), &p)
-	server := rpiHomeServer{nil, nil, make(map[net.Addr][]string), make(map[net.Addr][]configuration_loader.Action)}
+	server := rpiHomeServer{nil, make(map[net.Addr][]string), make(map[net.Addr][]configuration_loader.Action)}
 	message0 := messages_protocol.RegistrationMessage{}
 	message0.PinsToHandle = []string{"pin1"}
 	result, _ := server.RegisterToServer(ctx, &message0)
@@ -76,7 +76,7 @@ func TestUnregisterToServer(t *testing.T) {
 	conn := net.TCPConn{}
 	p := peer.Peer{conn.LocalAddr(), nil}
 	ctx := peer.NewContext(context.TODO(), &p)
-	server := rpiHomeServer{nil, nil, map[net.Addr][]string{conn.LocalAddr(): []string{"pin1"}}, nil}
+	server := rpiHomeServer{nil, map[net.Addr][]string{conn.LocalAddr(): []string{"pin1"}}, nil}
 	if len(server.clientsRegistered) != 1 {
 		t.Errorf("The server should contain an element initially, instead it contains %d", len(server.clientsRegistered))
 	}
@@ -93,7 +93,7 @@ func TestCheckForActions(t *testing.T) {
 	conn := net.TCPConn{}
 	p := peer.Peer{conn.LocalAddr(), nil}
 	ctx := peer.NewContext(context.TODO(), &p)
-	server := rpiHomeServer{nil, nil, make(map[net.Addr][]string), make(map[net.Addr][]configuration_loader.Action)}
+	server := rpiHomeServer{nil, make(map[net.Addr][]string), make(map[net.Addr][]configuration_loader.Action)}
 	actions, err := server.CheckForActions(ctx, &messages_protocol.Empty{})
 	if err != nil {
 		t.Errorf("Check for actions should not return an error")

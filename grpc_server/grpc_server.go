@@ -12,7 +12,7 @@ import (
 	"google.golang.org/grpc/peer"
 )
 
-func SetupAndRun(config configuration_loader.InitialConfiguration, outputChannel chan configuration_loader.Action, exitChannel chan bool) error {
+func SetupAndRun(config configuration_loader.InitialConfiguration, inputChannel chan configuration_loader.Action, exitChannel chan bool) error {
 	if config.GRPCServerConfiguration == nil {
 		return errors.New("Server parameters not set in the configuration file")
 	}
@@ -28,20 +28,37 @@ func SetupAndRun(config configuration_loader.InitialConfiguration, outputChannel
 	for _, pin := range config.PinsActive {
 		pinsRegistered = append(pinsRegistered, pin.Name)
 	}
-	messages_protocol.RegisterRPIHomeServerServiceServer(server, &rpiHomeServer{nil, outputChannel, make(map[net.Addr][]string), make(map[net.Addr][]configuration_loader.Action)})
-	go run(server, &lis, exitChannel)
+	clientsRegistered := make(map[net.Addr][]string)
+	conn := net.TCPConn{}
+	clientsRegistered[conn.LocalAddr()] = pinsRegistered
+	rpiServer := rpiHomeServer{nil, clientsRegistered, make(map[net.Addr][]configuration_loader.Action)}
+	messages_protocol.RegisterRPIHomeServerServiceServer(server, &rpiServer)
+	go run(server, &rpiServer, &lis, exitChannel, inputChannel)
 	return nil
 }
 
-func run(server *grpc.Server, listener *net.Listener, exitChannel chan bool) {
+func run(server *grpc.Server, rpiServer *rpiHomeServer, listener *net.Listener, exitChannel chan bool, inputChannel chan configuration_loader.Action) {
 	go server.Serve(*listener)
-	<-exitChannel
-	server.GracefulStop()
+	for {
+		select {
+		case <-exitChannel:
+			server.GracefulStop()
+			return
+		case action := <-inputChannel:
+			for client, pins := range rpiServer.clientsRegistered {
+				for _, pin := range pins {
+					if pin == action.Pin {
+						rpiServer.actionsToPerform[client] = append(rpiServer.actionsToPerform[client], action)
+					}
+				}
+			}
+			break
+		}
+	}
 }
 
 type rpiHomeServer struct {
 	messages_protocol.RPIHomeServerServiceServer
-	outputChannel     chan configuration_loader.Action
 	clientsRegistered map[net.Addr][]string
 	actionsToPerform  map[net.Addr][]configuration_loader.Action
 }
@@ -64,6 +81,7 @@ func (s *rpiHomeServer) RegisterToServer(ctx context.Context, message *messages_
 			return nil, errors.New("Error while extracting the peer from context")
 		}
 		s.clientsRegistered[p.Addr] = message.PinsToHandle
+		s.actionsToPerform[p.Addr] = []configuration_loader.Action{}
 		code := messages_protocol.RegistrationStatusCodes_Ok
 		result.Result = &code
 	} else {
@@ -81,7 +99,7 @@ func (s *rpiHomeServer) UnregisterToServer(ctx context.Context, empty *messages_
 	}
 	delete(s.clientsRegistered, p.Addr)
 	delete(s.actionsToPerform, p.Addr)
-	return nil, nil
+	return &messages_protocol.Empty{}, nil
 }
 
 func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_protocol.Empty) (*messages_protocol.ActionsToPerform, error) {
