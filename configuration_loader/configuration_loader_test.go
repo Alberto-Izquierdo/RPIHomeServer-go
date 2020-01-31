@@ -77,7 +77,26 @@ func TestLoadClientConfigurationFromStringWithBothTelegramAndGRPCData(t *testing
 		}
 	}`)
 	if _, err := loadConfigurationFromFileContent(content); err == nil {
-		t.Errorf("loadConfigurationFromFileContent() with both telegram bot and gRPC data should return an error, instead it returned %s", err)
+		t.Error("loadConfigurationFromFileContent() with both telegram bot and gRPC data should return an error")
+	}
+}
+
+func TestLoadClientConfigurationFromStringWithBothGrpcClientAndServer(t *testing.T) {
+	content := []byte(`
+	{
+		"GRPCServerIp": "192.168.2.160:8000",
+		"GRPCServerConfiguration": {
+			"Port": 8080
+		},
+		"PinsActive": [
+			{
+				"name": "light",
+				"pin": 	18
+			}
+		]
+	}`)
+	if _, err := loadConfigurationFromFileContent(content); err == nil {
+		t.Error("loadConfigurationFromFileContent() with both gRPC client and server data should return an error")
 	}
 }
 
