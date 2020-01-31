@@ -72,6 +72,8 @@ func loadConfigurationFromFileContent(fileContent []byte) (result InitialConfigu
 			if result.GRPCServerIp != "" {
 				err = errors.New("Configuration should only contain one of telegram bot configuration or gRPC configuration")
 			}
+		} else if result.GRPCServerIp != "" && result.GRPCServerConfiguration != nil {
+			err = errors.New("Configuration should only contain one of gRPC client or gRPC server")
 		}
 		if len(result.AutomaticMessages) > 0 {
 			for index, automaticMessage := range result.AutomaticMessages {
