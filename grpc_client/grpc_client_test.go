@@ -29,8 +29,8 @@ func TestWrongConfig(t *testing.T) {
 
 func createServer(t *testing.T) (chan bool, chan configuration_loader.Action) {
 	var serverConfig configuration_loader.InitialConfiguration
-	serverConfig.GRPCServerConfiguration = &configuration_loader.GRPCServerConfiguration{}
-	serverConfig.GRPCServerConfiguration.Port = 8080
+	serverConfig.ServerConfiguration = &configuration_loader.ServerConfiguration{}
+	serverConfig.ServerConfiguration.GRPCServerPort = 8080
 	serverConfig.PinsActive = append(serverConfig.PinsActive, gpio_manager.PairNamePin{"pin1", 90})
 	serverExitChannel := make(chan bool)
 	outputChannel := make(chan configuration_loader.Action)
