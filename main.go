@@ -50,12 +50,10 @@ func main() {
 		exitChannels = append(exitChannels, make(chan bool))
 		go message_generator.Run(config.AutomaticMessages, actionsChannel, exitChannels[len(exitChannels)-1])
 	}
-	if config.TelegramBotConfiguration != nil {
+	if config.ServerConfiguration != nil {
 		telegramInputChannel = make(chan string)
 		exitChannels = append(exitChannels, make(chan bool))
 		go telegram_bot.LaunchTelegramBot(config, telegramInputChannel, actionsChannel, exitChannels[len(exitChannels)-1])
-	}
-	if config.GRPCServerConfiguration != nil {
 		exitChannels = append(exitChannels, make(chan bool))
 		grpc_server.SetupAndRun(config, actionsChannel, exitChannels[len(exitChannels)-1])
 	}

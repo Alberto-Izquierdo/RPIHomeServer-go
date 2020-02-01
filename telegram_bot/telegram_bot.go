@@ -11,7 +11,7 @@ import (
 )
 
 func LaunchTelegramBot(config configuration_loader.InitialConfiguration, inputChannel chan string, outputChannel chan configuration_loader.Action, exitChannel chan bool) (err error) {
-	bot, err := tgbotapi.NewBotAPI(config.TelegramBotConfiguration.TelegramBotToken)
+	bot, err := tgbotapi.NewBotAPI(config.ServerConfiguration.TelegramBotToken)
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -39,7 +39,7 @@ func LaunchTelegramBot(config configuration_loader.InitialConfiguration, inputCh
 				continue
 			}
 			userAuthorized := false
-			for _, user := range config.TelegramBotConfiguration.AuthorizedUsers {
+			for _, user := range config.ServerConfiguration.TelegramAuthorizedUsers {
 				if user == update.Message.From.ID {
 					userAuthorized = true
 				}

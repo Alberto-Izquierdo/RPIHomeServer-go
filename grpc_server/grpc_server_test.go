@@ -19,18 +19,18 @@ func TestWrongConfig(t *testing.T) {
 	if err == nil {
 		t.Errorf("Empty config should return an error")
 	}
-	config.GRPCServerConfiguration = &configuration_loader.GRPCServerConfiguration{}
+	config.ServerConfiguration = &configuration_loader.ServerConfiguration{}
 	err = SetupAndRun(config, nil, exitChannel)
 	if err == nil {
 		t.Errorf("Empty server port config should return an error")
 	}
-	config.GRPCServerConfiguration.Port = -8080
+	config.ServerConfiguration.GRPCServerPort = -8080
 	err = SetupAndRun(config, nil, exitChannel)
 	if err == nil {
 		t.Errorf("Negative server port config should return an error")
 	}
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"pin1", 90})
-	config.GRPCServerConfiguration.Port = 8080
+	config.ServerConfiguration.GRPCServerPort = 8080
 	err = SetupAndRun(config, nil, exitChannel)
 	if err != nil {
 		t.Errorf("Correct server config should not return an error")

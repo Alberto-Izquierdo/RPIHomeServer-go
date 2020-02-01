@@ -14,10 +14,10 @@ func TestWrongConfig(t *testing.T) {
 	telegramInputChannel := make(chan string)
 	telegramExitChannel := make(chan bool)
 	var config configuration_loader.InitialConfiguration
-	var telegramConfig configuration_loader.TelegramBotConfiguration
-	config.TelegramBotConfiguration = &telegramConfig
-	config.TelegramBotConfiguration.TelegramBotToken = "asdf"
-	config.TelegramBotConfiguration.AuthorizedUsers = append(config.TelegramBotConfiguration.AuthorizedUsers, 1234, 5678)
+	var serverConfig configuration_loader.ServerConfiguration
+	config.ServerConfiguration = &serverConfig
+	config.ServerConfiguration.TelegramBotToken = "asdf"
+	config.ServerConfiguration.TelegramAuthorizedUsers = append(config.ServerConfiguration.TelegramAuthorizedUsers, 1234, 5678)
 	err := LaunchTelegramBot(config, telegramInputChannel, telegramOutputChannel, telegramExitChannel)
 	if err == nil {
 		t.Errorf("Wrong config should return an error")
@@ -29,10 +29,10 @@ func TestLaunchTelegramBot(t *testing.T) {
 	telegramInputChannel := make(chan string)
 	telegramExitChannel := make(chan bool)
 	var config configuration_loader.InitialConfiguration
-	var telegramConfig configuration_loader.TelegramBotConfiguration
-	config.TelegramBotConfiguration = &telegramConfig
-	config.TelegramBotConfiguration.TelegramBotToken = "153667468:AAHlSHlMqSt1f_uFmVRJbm5gntu2HI4WW8I"
-	config.TelegramBotConfiguration.AuthorizedUsers = append(config.TelegramBotConfiguration.AuthorizedUsers, 1234, 5678)
+	var serverConfig configuration_loader.ServerConfiguration
+	config.ServerConfiguration = &serverConfig
+	config.ServerConfiguration.TelegramBotToken = "153667468:AAHlSHlMqSt1f_uFmVRJbm5gntu2HI4WW8I"
+	config.ServerConfiguration.TelegramAuthorizedUsers = append(config.ServerConfiguration.TelegramAuthorizedUsers, 1234, 5678)
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Light", 1})
 	go func() {
 		time.Sleep(2 * time.Second)

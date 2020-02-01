@@ -13,13 +13,13 @@ import (
 )
 
 func SetupAndRun(config configuration_loader.InitialConfiguration, inputChannel chan configuration_loader.Action, exitChannel chan bool) error {
-	if config.GRPCServerConfiguration == nil {
+	if config.ServerConfiguration == nil {
 		return errors.New("Server parameters not set in the configuration file")
 	}
-	if config.GRPCServerConfiguration.Port == 0 {
+	if config.ServerConfiguration.GRPCServerPort == 0 {
 		return errors.New("Server port not set in the configuration file")
 	}
-	lis, err := net.Listen("tcp", ":"+strconv.Itoa(config.GRPCServerConfiguration.Port))
+	lis, err := net.Listen("tcp", ":"+strconv.Itoa(config.ServerConfiguration.GRPCServerPort))
 	if err != nil {
 		return errors.New("failed to listen: " + err.Error())
 	}

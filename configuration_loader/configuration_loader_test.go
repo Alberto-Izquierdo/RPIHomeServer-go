@@ -40,17 +40,36 @@ func TestLoadConfigurationFromStringWithInvalidTypes(t *testing.T) {
 	}
 }
 
-func TestLoadClientConfigurationFromStringWithNoAuthorizedUsers(t *testing.T) {
+func TestLoadClientConfigurationFromStringWithNoTelegramToken(t *testing.T) {
 	content := []byte(`
 	{
-		"GRPCServerIp": "192.168.2.160:8000",
 		"PinsActive": [
 			{
 				"name": "light",
 				"pin": 	18
 			}
 		],
-		"TelegramBotConfiguration": {
+		"ServerConfiguration": {
+			"TelegramAuthorizedUsers": [
+				1234
+			]
+		}
+	}`)
+	if _, err := loadConfigurationFromFileContent(content); err == nil {
+		t.Errorf("loadConfigurationFromFileContent() with not telegram token should return an error")
+	}
+}
+
+func TestLoadClientConfigurationFromStringWithNoAuthorizedUsers(t *testing.T) {
+	content := []byte(`
+	{
+		"PinsActive": [
+			{
+				"name": "light",
+				"pin": 	18
+			}
+		],
+		"ServerConfiguration": {
 			"TelegramBotToken": "randomToken"
 		}
 	}`)
@@ -59,7 +78,7 @@ func TestLoadClientConfigurationFromStringWithNoAuthorizedUsers(t *testing.T) {
 	}
 }
 
-func TestLoadClientConfigurationFromStringWithBothTelegramAndGRPCData(t *testing.T) {
+func TestLoadClientConfigurationFromStringWithBothTelegramAndGrpcClientData(t *testing.T) {
 	content := []byte(`
 	{
 		"GRPCServerIp": "192.168.2.160:8000",
@@ -69,9 +88,9 @@ func TestLoadClientConfigurationFromStringWithBothTelegramAndGRPCData(t *testing
 				"pin": 	18
 			}
 		],
-		"TelegramBotConfiguration": {
+		"ServerConfiguration": {
 			"TelegramBotToken": "randomToken",
-			"AuthorizedUsers": [
+			"TelegramAuthorizedUsers": [
 				1234
 			]
 		}
@@ -85,8 +104,8 @@ func TestLoadClientConfigurationFromStringWithBothGrpcClientAndServer(t *testing
 	content := []byte(`
 	{
 		"GRPCServerIp": "192.168.2.160:8000",
-		"GRPCServerConfiguration": {
-			"Port": 8080
+		"ServerConfiguration": {
+			"GRPCServerPort": 8080
 		},
 		"PinsActive": [
 			{
@@ -100,6 +119,28 @@ func TestLoadClientConfigurationFromStringWithBothGrpcClientAndServer(t *testing
 	}
 }
 
+func TestLoadClientConfigurationFromStringWithNotGrpcServerPort(t *testing.T) {
+	content := []byte(`
+	{
+		"PinsActive": [
+			{
+				"name": "light",
+				"pin": 	18
+			}
+		],
+		"ServerConfiguration": {
+			"TelegramBotToken": "randomToken",
+			"TelegramAuthorizedUsers": [
+				1234
+			]
+		}
+	}`)
+
+	if _, err := loadConfigurationFromFileContent(content); err == nil {
+		t.Errorf("loadConfigurationFromFileContent() with no gRPC server port should return an error")
+	}
+}
+
 func TestLoadClientConfigurationFromStringWithCorrectTelegramBotData(t *testing.T) {
 	content := []byte(`
 	{
@@ -109,34 +150,36 @@ func TestLoadClientConfigurationFromStringWithCorrectTelegramBotData(t *testing.
 				"pin": 	18
 			}
 		],
-		"TelegramBotConfiguration": {
+		"ServerConfiguration": {
 			"TelegramBotToken": "randomToken",
-			"AuthorizedUsers": [
+			"TelegramAuthorizedUsers": [
 				1234
-			]
+			],
+			"GRPCServerPort": 8080
 		}
 	}`)
 
 	if config, err := loadConfigurationFromFileContent(content); err != nil {
 		t.Errorf("loadConfigurationFromFileContent() with proper content should not return an error, instead it returned %s", err)
-	} else if config.GRPCServerIp != "" {
-		t.Errorf("The ip should be empty, instead, it is %s", config.GRPCServerIp)
+	} else if config.GRPCServerIp != "localhost:8080" {
+		t.Errorf("The ip should be \"localhost:8080\", instead, it is %s", config.GRPCServerIp)
 	} else if len(config.PinsActive) == 0 {
 		t.Errorf("The array of pins should not be empty")
 	} else if config.PinsActive[0].Name != "light" {
 		t.Errorf("The name of the pin should be \"light\", instead it is %s", config.PinsActive[0].Name)
 	} else if config.PinsActive[0].Pin != 18 {
 		t.Errorf("The value of the pin should be 18, instead it is %d", config.PinsActive[0].Pin)
-	} else if config.TelegramBotConfiguration == nil {
-		t.Errorf("The telegram bot configuration should not be nil")
-	} else if config.TelegramBotConfiguration.TelegramBotToken != "randomToken" {
-		t.Errorf("The telegram bot token should be \"randomToken\", instead it is %s", config.TelegramBotConfiguration.TelegramBotToken)
-	} else if len(config.TelegramBotConfiguration.AuthorizedUsers) != 1 {
+	} else if config.ServerConfiguration == nil {
+		t.Errorf("The server configuration should not be nil")
+	} else if config.ServerConfiguration.TelegramBotToken != "randomToken" {
+		t.Errorf("The telegram bot token should be \"randomToken\", instead it is %s", config.ServerConfiguration.TelegramBotToken)
+	} else if len(config.ServerConfiguration.TelegramAuthorizedUsers) != 1 {
 		t.Errorf("The authorized users array should contain one elements")
-	} else if config.TelegramBotConfiguration.AuthorizedUsers[0] != 1234 {
-		t.Errorf("The authorized users array should contain 1234, instead it contains %d", config.TelegramBotConfiguration.AuthorizedUsers[0])
+	} else if config.ServerConfiguration.TelegramAuthorizedUsers[0] != 1234 {
+		t.Errorf("The authorized users array should contain 1234, instead it contains %d", config.ServerConfiguration.TelegramAuthorizedUsers[0])
+	} else if config.ServerConfiguration.GRPCServerPort != 8080 {
+		t.Errorf("The gRPC server por should be 8080, instead it is %d", config.ServerConfiguration.GRPCServerPort)
 	}
-
 }
 
 func TestLoadClientConfigurationFromStringWithWrongAutomaticMessages(t *testing.T) {
@@ -209,7 +252,7 @@ func TestLoadClientConfigurationFromStringWithCorrectGRPCData(t *testing.T) {
 		t.Errorf("The name of the pin should be \"light\", instead it is %s", config.PinsActive[0].Name)
 	} else if config.PinsActive[0].Pin != 18 {
 		t.Errorf("The value of the pin should be 18, instead it is %d", config.PinsActive[0].Pin)
-	} else if config.TelegramBotConfiguration != nil {
+	} else if config.ServerConfiguration != nil {
 		t.Errorf("The telegram bot configuration should be nil")
 	}
 }

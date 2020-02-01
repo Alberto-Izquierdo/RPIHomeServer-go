@@ -11,11 +11,6 @@ import (
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/gpio_manager"
 )
 
-type TelegramBotConfiguration struct {
-	TelegramBotToken string
-	AuthorizedUsers  []int
-}
-
 type MyTime time.Time
 
 type ActionTime struct {
@@ -28,16 +23,17 @@ type Action struct {
 	State bool
 }
 
-type GRPCServerConfiguration struct {
-	Port int
+type ServerConfiguration struct {
+	GRPCServerPort          int
+	TelegramBotToken        string
+	TelegramAuthorizedUsers []int
 }
 
 type InitialConfiguration struct {
-	GRPCServerIp             string
-	PinsActive               []gpio_manager.PairNamePin
-	TelegramBotConfiguration *TelegramBotConfiguration
-	GRPCServerConfiguration  *GRPCServerConfiguration
-	AutomaticMessages        []ActionTime
+	GRPCServerIp        string
+	PinsActive          []gpio_manager.PairNamePin
+	ServerConfiguration *ServerConfiguration
+	AutomaticMessages   []ActionTime
 }
 
 func (a *MyTime) UnmarshalJSON(b []byte) error {
@@ -62,18 +58,24 @@ func (this ActionTime) LessThan(other interface{}) bool {
 func loadConfigurationFromFileContent(fileContent []byte) (result InitialConfiguration, err error) {
 	err = json.Unmarshal(fileContent, &result)
 	if err == nil {
-		if len(result.PinsActive) == 0 {
+		if result.ServerConfiguration == nil && len(result.PinsActive) == 0 {
 			err = errors.New("PinsActive array is empty")
 		}
-		if result.TelegramBotConfiguration != nil {
-			if len(result.TelegramBotConfiguration.AuthorizedUsers) == 0 {
+		if result.ServerConfiguration != nil {
+			if result.ServerConfiguration.TelegramBotToken == "" {
+				err = errors.New("Telegram bot token not defined")
+			}
+			if len(result.ServerConfiguration.TelegramAuthorizedUsers) == 0 {
 				err = errors.New("Telegram bot does not have any authorized users")
 			}
-			if result.GRPCServerIp != "" {
-				err = errors.New("Configuration should only contain one of telegram bot configuration or gRPC configuration")
+			if result.ServerConfiguration.GRPCServerPort == 0 {
+				err = errors.New("gRPC server port not defined")
 			}
-		} else if result.GRPCServerIp != "" && result.GRPCServerConfiguration != nil {
-			err = errors.New("Configuration should only contain one of gRPC client or gRPC server")
+			if result.GRPCServerIp != "" {
+				err = errors.New("If a node acts as server, it should not act as client (the client configuration will be done automatically")
+			} else {
+				result.GRPCServerIp = "localhost:" + strconv.Itoa(result.ServerConfiguration.GRPCServerPort)
+			}
 		}
 		if len(result.AutomaticMessages) > 0 {
 			for index, automaticMessage := range result.AutomaticMessages {
