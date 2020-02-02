@@ -42,7 +42,7 @@ func TestRegisterToServer(t *testing.T) {
 	conn := net.TCPConn{}
 	p := peer.Peer{conn.LocalAddr(), nil}
 	ctx := peer.NewContext(context.TODO(), &p)
-	server := rpiHomeServer{nil, make(map[net.Addr][]string), make(map[net.Addr][]configuration_loader.Action)}
+	server := rpiHomeServer{nil, make(map[net.Addr][]string), make(map[net.Addr]chan configuration_loader.Action)}
 	message0 := messages_protocol.RegistrationMessage{}
 	message0.PinsToHandle = []string{"pin1"}
 	result, _ := server.RegisterToServer(ctx, &message0)
@@ -80,7 +80,7 @@ func TestUnregisterToServer(t *testing.T) {
 	if len(server.clientsRegistered) != 1 {
 		t.Errorf("The server should contain an element initially, instead it contains %d", len(server.clientsRegistered))
 	}
-	server.actionsToPerform = map[net.Addr][]configuration_loader.Action{conn.LocalAddr(): []configuration_loader.Action{configuration_loader.Action{"pin1", false}}}
+	server.actionsToPerform = map[net.Addr]chan configuration_loader.Action{conn.LocalAddr(): make(chan configuration_loader.Action)}
 	server.UnregisterToServer(ctx, &messages_protocol.Empty{})
 	if len(server.clientsRegistered) != 0 {
 		t.Errorf("After a successfull unregistering, the clients registered should contain zero elements, instead it contains %d", len(server.clientsRegistered))
@@ -93,15 +93,12 @@ func TestCheckForActions(t *testing.T) {
 	conn := net.TCPConn{}
 	p := peer.Peer{conn.LocalAddr(), nil}
 	ctx := peer.NewContext(context.TODO(), &p)
-	server := rpiHomeServer{nil, make(map[net.Addr][]string), make(map[net.Addr][]configuration_loader.Action)}
+	server := rpiHomeServer{nil, make(map[net.Addr][]string), make(map[net.Addr]chan configuration_loader.Action)}
+	server.actionsToPerform[conn.LocalAddr()] = make(chan configuration_loader.Action)
+	go func() {
+		server.actionsToPerform[conn.LocalAddr()] <- configuration_loader.Action{"pin1", false}
+	}()
 	actions, err := server.CheckForActions(ctx, &messages_protocol.Empty{})
-	if err != nil {
-		t.Errorf("Check for actions should not return an error")
-	} else if len(actions.Actions) != 0 {
-		t.Errorf("Check for actions should return 0 actions if there have not been additions")
-	}
-	server.actionsToPerform = map[net.Addr][]configuration_loader.Action{conn.LocalAddr(): []configuration_loader.Action{configuration_loader.Action{"pin1", false}}}
-	actions, err = server.CheckForActions(ctx, &messages_protocol.Empty{})
 	if err != nil {
 		t.Errorf("Check for actions should not return an error")
 	} else if len(actions.Actions) != 1 {
@@ -111,8 +108,6 @@ func TestCheckForActions(t *testing.T) {
 	} else if *actions.Actions[0].State != false {
 		t.Errorf("Element 0 state from check for actions should be false")
 	} else if len(server.actionsToPerform[conn.LocalAddr()]) != 0 {
-		t.Errorf("After receiving the actions to perform, they should be removed")
-	} else if len(server.actionsToPerform) != 0 {
 		t.Errorf("After receiving the actions to perform, they should be removed")
 	}
 }
