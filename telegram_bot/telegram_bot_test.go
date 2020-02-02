@@ -18,7 +18,7 @@ func TestWrongConfig(t *testing.T) {
 	config.ServerConfiguration = &serverConfig
 	config.ServerConfiguration.TelegramBotToken = "asdf"
 	config.ServerConfiguration.TelegramAuthorizedUsers = append(config.ServerConfiguration.TelegramAuthorizedUsers, 1234, 5678)
-	err := LaunchTelegramBot(config, telegramInputChannel, telegramOutputChannel, telegramExitChannel)
+	err := LaunchTelegramBot(config, telegramOutputChannel, telegramInputChannel, telegramExitChannel)
 	if err == nil {
 		t.Errorf("Wrong config should return an error")
 	}
@@ -38,7 +38,7 @@ func TestLaunchTelegramBot(t *testing.T) {
 		time.Sleep(2 * time.Second)
 		close(telegramExitChannel)
 	}()
-	LaunchTelegramBot(config, telegramInputChannel, telegramOutputChannel, telegramExitChannel)
+	LaunchTelegramBot(config, telegramOutputChannel, telegramInputChannel, telegramExitChannel)
 }
 
 func TestGetMessagesAvailableMarkup(t *testing.T) {
@@ -49,20 +49,20 @@ func TestGetMessagesAvailableMarkup(t *testing.T) {
 			t.Errorf("The message should contain two rows (light and water)")
 		} else if len(markup.Keyboard[0]) != 3 {
 			t.Errorf("The message should contain three columns (on, off, onAndOff)")
-		} else if markup.Keyboard[0][0].Text != "turnLightOn" {
-			t.Errorf("Button should contain \"turnLightOn\" and it is \"%s\"", markup.Keyboard[0][0].Text)
-		} else if markup.Keyboard[0][1].Text != "turnLightOff" {
-			t.Errorf("Button should contain \"turnLightOff\" and it is \"%s\"", markup.Keyboard[0][1].Text)
-		} else if markup.Keyboard[0][2].Text != "turnLightOnAndOff 2s" {
-			t.Errorf("Button should contain \"turnLightOnAndOff 2s\" and it is \"%s\"", markup.Keyboard[0][2].Text)
+		} else if markup.Keyboard[0][0].Text != "LightOn" {
+			t.Errorf("Button should contain \"LightOn\" and it is \"%s\"", markup.Keyboard[0][0].Text)
+		} else if markup.Keyboard[0][1].Text != "LightOff" {
+			t.Errorf("Button should contain \"LightOff\" and it is \"%s\"", markup.Keyboard[0][1].Text)
+		} else if markup.Keyboard[0][2].Text != "LightOnAndOff 2s" {
+			t.Errorf("Button should contain \"LightOnAndOff 2s\" and it is \"%s\"", markup.Keyboard[0][2].Text)
 		} else if len(markup.Keyboard[1]) != 3 {
 			t.Errorf("The message should contain three columns (on, off, onAndOff)")
-		} else if markup.Keyboard[1][0].Text != "turnWaterOn" {
-			t.Errorf("Button should contain \"turnWaterOn\" and it is \"%s\"", markup.Keyboard[1][0].Text)
-		} else if markup.Keyboard[1][1].Text != "turnWaterOff" {
-			t.Errorf("Button should contain \"turnWaterOff\" and it is \"%s\"", markup.Keyboard[1][1].Text)
-		} else if markup.Keyboard[1][2].Text != "turnWaterOnAndOff 2s" {
-			t.Errorf("Button should contain \"turnWaterOnAndOff 2s\" and it is \"%s\"", markup.Keyboard[1][2].Text)
+		} else if markup.Keyboard[1][0].Text != "WaterOn" {
+			t.Errorf("Button should contain \"WaterOn\" and it is \"%s\"", markup.Keyboard[1][0].Text)
+		} else if markup.Keyboard[1][1].Text != "WaterOff" {
+			t.Errorf("Button should contain \"WaterOff\" and it is \"%s\"", markup.Keyboard[1][1].Text)
+		} else if markup.Keyboard[1][2].Text != "WaterOnAndOff 2s" {
+			t.Errorf("Button should contain \"WaterOnAndOff 2s\" and it is \"%s\"", markup.Keyboard[1][2].Text)
 		}
 	} else {
 		t.Errorf("Error getting the message's reply markup")
@@ -76,7 +76,7 @@ func TestTurnPinOn(t *testing.T) {
 	telegramOutputChannel := make(chan configuration_loader.Action)
 	telegramInputChannel := make(chan string)
 	go func() {
-		turnPinOn("turnLightOn", config, 0, 0, telegramOutputChannel, telegramInputChannel)
+		turnPinOn("LightOn", config, 0, 0, telegramOutputChannel, telegramInputChannel)
 	}()
 	action := <-telegramOutputChannel
 	telegramInputChannel <- "test"
@@ -86,7 +86,7 @@ func TestTurnPinOn(t *testing.T) {
 		t.Errorf("Action's state should be true")
 	}
 	go func() {
-		turnPinOn("turnWaterOn", config, 0, 0, telegramOutputChannel, telegramInputChannel)
+		turnPinOn("WaterOn", config, 0, 0, telegramOutputChannel, telegramInputChannel)
 	}()
 	action = <-telegramOutputChannel
 	telegramInputChannel <- "test"
@@ -104,7 +104,7 @@ func TestTurnPinOff(t *testing.T) {
 	telegramOutputChannel := make(chan configuration_loader.Action)
 	telegramInputChannel := make(chan string)
 	go func() {
-		turnPinOff("turnLightOff", config, 0, 0, telegramOutputChannel, telegramInputChannel)
+		turnPinOff("LightOff", config, 0, 0, telegramOutputChannel, telegramInputChannel)
 	}()
 	action := <-telegramOutputChannel
 	telegramInputChannel <- "test"
@@ -114,7 +114,7 @@ func TestTurnPinOff(t *testing.T) {
 		t.Errorf("Action's state should be true")
 	}
 	go func() {
-		turnPinOff("turnWaterOff", config, 0, 0, telegramOutputChannel, telegramInputChannel)
+		turnPinOff("WaterOff", config, 0, 0, telegramOutputChannel, telegramInputChannel)
 	}()
 	action = <-telegramOutputChannel
 	telegramInputChannel <- "test"
@@ -131,16 +131,16 @@ func TestTurnPinOnAndOff(t *testing.T) {
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Water", 2})
 	telegramOutputChannel := make(chan configuration_loader.Action)
 	telegramInputChannel := make(chan string)
-	msg := turnPinOnAndOff("turnLightOnAndOff", config, 0, 0, telegramOutputChannel, telegramInputChannel)
+	msg := turnPinOnAndOff("LightOnAndOff", config, 0, 0, telegramOutputChannel, telegramInputChannel)
 	if msg.Text != "OnAndOff messages should contain at least two words (action and time)" {
 		t.Errorf("Wrong message should return an error")
 	}
-	msg = turnPinOnAndOff("turnLightOnAndOff 40w", config, 0, 0, telegramOutputChannel, telegramInputChannel)
+	msg = turnPinOnAndOff("LightOnAndOff 40w", config, 0, 0, telegramOutputChannel, telegramInputChannel)
 	if msg.Text != "Time not set properly" {
 		t.Errorf("Wrong time format should return an error")
 	}
 	go func() {
-		turnPinOnAndOff("turnLightOnAndOff 1s", config, 0, 0, telegramOutputChannel, telegramInputChannel)
+		turnPinOnAndOff("LightOnAndOff 1s", config, 0, 0, telegramOutputChannel, telegramInputChannel)
 	}()
 	action := <-telegramOutputChannel
 	telegramInputChannel <- "test"

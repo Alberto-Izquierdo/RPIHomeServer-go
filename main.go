@@ -9,6 +9,7 @@ import (
 
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/gpio_manager"
+	"github.com/Alberto-Izquierdo/RPIHomeServer-go/grpc_client"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/grpc_server"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/message_generator"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/telegram_bot"
@@ -20,79 +21,62 @@ func main() {
 	setupKeyboardSignal()
 	config, err := loadConfiguration()
 	if err != nil {
-		fmt.Println("There was an error parsing the configuration file: ", err)
+		fmt.Println("There was an error parsing the configuration file: ", err.Error())
 		return
 	}
 	err = gpio_manager.Setup(config.PinsActive)
 	defer gpio_manager.ClearAllPins()
 	if err != nil {
-		fmt.Println("There was an error setting up the GPIO manager: ", err)
+		fmt.Println("There was an error setting up the GPIO manager: ", err.Error())
 		return
 	}
-	/*
-		fmt.Println("Configuration loaded, connecting to gRPC server")
-		client, connection, err := grpc.ConnectToGrpcServer(config)
-		if err != nil {
-			fmt.Println("There was an error connecting to the gRPC server: ", err)
-			return
-		}
-		defer connection.Close()
-		err = grpc.RegisterPinsToGRPCServer(client, config)
-		if err != nil {
-			fmt.Println("There was an error with the gRPC registration: ", err)
-			return
-		}
-	*/
-	actionsChannel := make(chan configuration_loader.Action)
-	var telegramInputChannel chan string = nil
+	// general variables
 	var exitChannels []chan bool
+
+	// gRPC server and telegram bot
+	if config.ServerConfiguration != nil {
+		tgGrpcActionsChannel := make(chan configuration_loader.Action)
+		tgGrpcResponsesChannel := make(chan string)
+		exitChannels = append(exitChannels, make(chan bool))
+		err = telegram_bot.LaunchTelegramBot(config, tgGrpcActionsChannel, tgGrpcResponsesChannel, exitChannels[len(exitChannels)-1])
+		if err != nil {
+			fmt.Println("Error while setting up telegram bot: " + err.Error())
+			return
+		}
+		exitChannels = append(exitChannels, make(chan bool))
+		err = grpc_server.SetupAndRun(config, tgGrpcActionsChannel, tgGrpcResponsesChannel, exitChannels[len(exitChannels)-1])
+		if err != nil {
+			fmt.Println("Error while setting up gRPC server: " + err.Error())
+			return
+		}
+	}
+
+	// gRPC client
+	gRPCClientActionsChannel := make(chan configuration_loader.Action)
+	exitChannels = append(exitChannels, make(chan bool))
+	err = grpc_client.Run(config, exitChannels[len(exitChannels)-1], gRPCClientActionsChannel)
+	if err != nil {
+		fmt.Println("Error while setting up gRPC client: " + err.Error())
+		return
+	}
+	//TODO: gRPCClientMessagesChannel := make(chan string)
+
 	if len(config.AutomaticMessages) > 0 {
 		exitChannels = append(exitChannels, make(chan bool))
-		go message_generator.Run(config.AutomaticMessages, actionsChannel, exitChannels[len(exitChannels)-1])
-	}
-	if config.ServerConfiguration != nil {
-		telegramInputChannel = make(chan string)
-		exitChannels = append(exitChannels, make(chan bool))
-		go telegram_bot.LaunchTelegramBot(config, telegramInputChannel, actionsChannel, exitChannels[len(exitChannels)-1])
-		exitChannels = append(exitChannels, make(chan bool))
-		grpc_server.SetupAndRun(config, actionsChannel, exitChannels[len(exitChannels)-1])
+		go message_generator.Run(config.AutomaticMessages, gRPCClientActionsChannel, exitChannels[len(exitChannels)-1])
 	}
 	fmt.Println("Waiting for messages")
 	var exit = false
 	for !exit {
 		select {
-		case action := <-actionsChannel:
-			if action.Pin == "start" {
-				// TODO: call grpc
-				messages := ""
-				for _, value := range config.PinsActive {
-					messages += value.Name + " "
-				}
-				telegramInputChannel <- messages
-			} else {
-				// TODO: check if action is in this machine, if not, search in other connected machines
-				stateChanged, err := gpio_manager.SetPinState(action.Pin, action.State)
-				if err != nil {
-					telegramInputChannel <- err.Error()
-				} else {
-					if stateChanged {
-						if action.State {
-							telegramInputChannel <- action.Pin + " turned On"
-						} else {
-							telegramInputChannel <- action.Pin + " turned Off"
-						}
-					} else {
-						if action.State {
-							telegramInputChannel <- action.Pin + " did not change (was already On)"
-						} else {
-							telegramInputChannel <- action.Pin + " did not change (was already Off)"
-						}
-					}
-				}
-			}
+		case action := <-gRPCClientActionsChannel:
+			gpio_manager.SetPinState(action.Pin, action.State)
 		case exit = <-mainExitChannel:
+			for index := range exitChannels {
+				exitChannels[len(exitChannels)-1-index] <- true
+			}
 			for _, exitChannel := range exitChannels {
-				exitChannel <- true
+				<-exitChannel
 			}
 		}
 	}

@@ -2,6 +2,7 @@ package telegram_bot
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -10,73 +11,80 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-func LaunchTelegramBot(config configuration_loader.InitialConfiguration, inputChannel chan string, outputChannel chan configuration_loader.Action, exitChannel chan bool) (err error) {
+func LaunchTelegramBot(config configuration_loader.InitialConfiguration, outputChannel chan configuration_loader.Action, inputChannel chan string, exitChannel chan bool) error {
 	bot, err := tgbotapi.NewBotAPI(config.ServerConfiguration.TelegramBotToken)
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 	fmt.Println("Telegram bot created correctly, waiting for messages")
 
-	actionsMap := make(map[string]messageHandlingFunc)
-	for _, pin := range config.PinsActive {
-		actionsMap["turn"+pin.Name+"On"] = turnPinOn
-		actionsMap["turn"+pin.Name+"Off"] = turnPinOff
-		actionsMap["turn"+pin.Name+"OnAndOff"] = turnPinOnAndOff
-	}
-
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
-
 	updates, err := bot.GetUpdatesChan(u)
+	if err != nil {
+		return err
+	}
 
-	for {
-		select {
-		case _ = <-exitChannel:
-			return nil
-		case update := <-updates:
-			if update.Message == nil {
-				continue
-			}
-			userAuthorized := false
-			for _, user := range config.ServerConfiguration.TelegramAuthorizedUsers {
-				if user == update.Message.From.ID {
-					userAuthorized = true
+	go func(updatesChannel tgbotapi.UpdatesChannel) {
+		for {
+			select {
+			case _ = <-exitChannel:
+				fmt.Println("Exit signal received in telegram bot")
+				exitChannel <- true
+				return
+			case update := <-updatesChannel:
+				if update.Message == nil {
+					continue
 				}
-			}
-			if userAuthorized {
-				key := strings.Fields(update.Message.Text)[0]
-				if actionFunction, ok := actionsMap[key]; ok {
-					go func() {
-						msg := actionFunction(update.Message.Text, config, update.Message.Chat.ID, update.Message.MessageID, outputChannel, inputChannel)
-						bot.Send(msg)
-					}()
-				} else {
-					if key == "start" {
+				userAuthorized := false
+				for _, user := range config.ServerConfiguration.TelegramAuthorizedUsers {
+					if user == update.Message.From.ID {
+						userAuthorized = true
+					}
+				}
+				if userAuthorized {
+					messageDivided := strings.Fields(update.Message.Text)
+					possibleAction := messageDivided[0]
+					if strings.ToLower(possibleAction) == "/start" {
 						messages := getMessagesAvailable(outputChannel, inputChannel)
 						msg := createMarkupForMessages(messages, update.Message.Chat.ID, update.Message.MessageID)
 						bot.Send(msg)
+						continue
+					} else if matched, err := regexp.Match("OnAndOff$", []byte(possibleAction)); err == nil && matched {
+						go func() {
+							msg := turnPinOnAndOff(update.Message.Text, config, update.Message.Chat.ID, update.Message.MessageID, outputChannel, inputChannel)
+							bot.Send(msg)
+						}()
+					} else if matched, err = regexp.Match("On$", []byte(possibleAction)); err == nil && matched {
+						go func() {
+							msg := turnPinOn(update.Message.Text, config, update.Message.Chat.ID, update.Message.MessageID, outputChannel, inputChannel)
+							bot.Send(msg)
+						}()
+					} else if matched, err = regexp.Match("Off$", []byte(possibleAction)); err == nil && matched {
+						go func() {
+							msg := turnPinOff(update.Message.Text, config, update.Message.Chat.ID, update.Message.MessageID, outputChannel, inputChannel)
+							bot.Send(msg)
+						}()
 					} else {
-						fmt.Println("Action \"" + key + "\" not available")
-						msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Action \""+key+"\" not available")
+						msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Message was not correct")
 						msg.ReplyToMessageID = update.Message.MessageID
 						bot.Send(msg)
 					}
+				} else {
+					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "User not authorized :(")
+					msg.ReplyToMessageID = update.Message.MessageID
+					bot.Send(msg)
+					fmt.Println("User " + strconv.FormatInt(update.Message.Chat.ID, 10) + " tried to send a message (not authorized)")
 				}
-			} else {
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "User not authorized :(")
-				msg.ReplyToMessageID = update.Message.MessageID
-				bot.Send(msg)
-				fmt.Println("User " + strconv.FormatInt(update.Message.Chat.ID, 10) + " tried to send a message (not authorized)")
 			}
 		}
-	}
+	}(updates)
 	return nil
 }
 
 func turnPinOn(message string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, outputChannel chan configuration_loader.Action, inputChannel chan string) tgbotapi.MessageConfig {
 	firstPart := strings.Fields(message)[0]
-	pin := firstPart[4 : len(firstPart)-2]
+	pin := firstPart[:len(firstPart)-2]
 	outputChannel <- configuration_loader.Action{pin, true}
 	response := <-inputChannel
 	return buildMessage(response, chatId, replyToMessageId)
@@ -84,7 +92,7 @@ func turnPinOn(message string, config configuration_loader.InitialConfiguration,
 
 func turnPinOff(message string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, outputChannel chan configuration_loader.Action, inputChannel chan string) tgbotapi.MessageConfig {
 	firstPart := strings.Fields(message)[0]
-	pin := firstPart[4 : len(firstPart)-3]
+	pin := firstPart[:len(firstPart)-3]
 	outputChannel <- configuration_loader.Action{pin, false}
 	response := <-inputChannel
 	return buildMessage(response, chatId, replyToMessageId)
@@ -96,7 +104,7 @@ func turnPinOnAndOff(message string, config configuration_loader.InitialConfigur
 		return buildMessage("OnAndOff messages should contain at least two words (action and time)", chatId, replyToMessageId)
 	}
 	firstPart := fields[0]
-	pin := firstPart[4 : len(firstPart)-8]
+	pin := firstPart[:len(firstPart)-8]
 	duration, err := time.ParseDuration(fields[1])
 	if err != nil {
 		return buildMessage("Time not set properly", chatId, replyToMessageId)
@@ -127,7 +135,7 @@ func getMessagesAvailable(outputChannel chan configuration_loader.Action, inputC
 func createMarkupForMessages(messages []string, chatId int64, replyToMessageId int) tgbotapi.MessageConfig {
 	markup := tgbotapi.NewReplyKeyboard()
 	for _, value := range messages {
-		markup.Keyboard = append(markup.Keyboard, tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton("turn"+value+"On"), tgbotapi.NewKeyboardButton("turn"+value+"Off"), tgbotapi.NewKeyboardButton("turn"+value+"OnAndOff 2s")))
+		markup.Keyboard = append(markup.Keyboard, tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton(value+"On"), tgbotapi.NewKeyboardButton(value+"Off"), tgbotapi.NewKeyboardButton(value+"OnAndOff 2s")))
 	}
 	msg := tgbotapi.NewMessage(chatId, "Welcome to rpi bot")
 	msg.ReplyToMessageID = replyToMessageId

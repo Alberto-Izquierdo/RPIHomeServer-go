@@ -24,7 +24,7 @@ func Run(actions []configuration_loader.ActionTime, outputChannel chan configura
 		actionTime.Time = configuration_loader.MyTime(date)
 		err := queue.Push(actionTime)
 		if err != nil {
-			fmt.Println("[message_generator]: Could not push elements into the queue: ", err)
+			fmt.Println("[message_generator]: Could not push elements into the queue: ", err.Error())
 			exitChannel <- true
 			return
 		}
@@ -32,7 +32,7 @@ func Run(actions []configuration_loader.ActionTime, outputChannel chan configura
 	for {
 		nextElement, err := queue.Pop()
 		if err != nil {
-			fmt.Println("[message_generator]: Error when trying to pop elements from actions queue: ", err)
+			fmt.Println("[message_generator]: Error when trying to pop elements from actions queue: ", err.Error())
 			exitChannel <- true
 			return
 		}
@@ -43,6 +43,7 @@ func Run(actions []configuration_loader.ActionTime, outputChannel chan configura
 		select {
 		case _ = <-exitChannel:
 			fmt.Println("[message_generator] Exit signal received, exiting...")
+			exitChannel <- true
 			return
 		case <-time.After(t.Sub(now)):
 			// Enqueue the action to the gpio manager
@@ -52,7 +53,7 @@ func Run(actions []configuration_loader.ActionTime, outputChannel chan configura
 			nextAction.Time = configuration_loader.MyTime(t)
 			err := queue.Push(nextAction)
 			if err != nil {
-				fmt.Println("[message_generator]: Could not push elements into the queue: ", err)
+				fmt.Println("[message_generator]: Could not push elements into the queue: ", err.Error())
 				exitChannel <- true
 				return
 			}
