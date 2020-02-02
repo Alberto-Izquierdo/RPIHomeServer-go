@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"time"
 
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
 	messages_protocol "github.com/Alberto-Izquierdo/RPIHomeServer-go/messages"
@@ -29,7 +30,7 @@ func SetupAndRun(config configuration_loader.InitialConfiguration, inputChannel 
 	for _, pin := range config.PinsActive {
 		pinsRegistered = append(pinsRegistered, pin.Name)
 	}
-	rpiServer := rpiHomeServer{nil, make(map[net.Addr][]string), make(map[net.Addr][]configuration_loader.Action)}
+	rpiServer := rpiHomeServer{nil, make(map[net.Addr][]string), make(map[net.Addr]chan configuration_loader.Action)}
 	messages_protocol.RegisterRPIHomeServerServiceServer(server, &rpiServer)
 	go run(server, &rpiServer, &lis, exitChannel, inputChannel, responsesChannel)
 	return nil
@@ -57,7 +58,7 @@ func run(server *grpc.Server, rpiServer *rpiHomeServer, listener *net.Listener, 
 				for client, pins := range rpiServer.clientsRegistered {
 					for _, pin := range pins {
 						if pin == action.Pin {
-							rpiServer.actionsToPerform[client] = append(rpiServer.actionsToPerform[client], action)
+							rpiServer.actionsToPerform[client] <- action
 							response = "Action received!"
 							continue
 						}
@@ -75,7 +76,7 @@ func run(server *grpc.Server, rpiServer *rpiHomeServer, listener *net.Listener, 
 type rpiHomeServer struct {
 	messages_protocol.RPIHomeServerServiceServer
 	clientsRegistered map[net.Addr][]string
-	actionsToPerform  map[net.Addr][]configuration_loader.Action
+	actionsToPerform  map[net.Addr]chan configuration_loader.Action
 }
 
 func (s *rpiHomeServer) RegisterToServer(ctx context.Context, message *messages_protocol.RegistrationMessage) (*messages_protocol.RegistrationResult, error) {
@@ -96,7 +97,7 @@ func (s *rpiHomeServer) RegisterToServer(ctx context.Context, message *messages_
 			return nil, errors.New("Error while extracting the peer from context")
 		}
 		s.clientsRegistered[p.Addr] = message.PinsToHandle
-		s.actionsToPerform[p.Addr] = []configuration_loader.Action{}
+		s.actionsToPerform[p.Addr] = make(chan configuration_loader.Action)
 		code := messages_protocol.RegistrationStatusCodes_Ok
 		result.Result = &code
 	} else {
@@ -118,18 +119,19 @@ func (s *rpiHomeServer) UnregisterToServer(ctx context.Context, empty *messages_
 }
 
 func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_protocol.Empty) (*messages_protocol.ActionsToPerform, error) {
-	// TODO: wait for actions for this client (make use of a channel for each client) instead of looping asking for actions
 	p, ok := peer.FromContext(ctx)
 	if !ok {
 		return nil, errors.New("Error while extracting the peer from context")
 	}
 	actions := messages_protocol.ActionsToPerform{}
-	for _, v := range s.actionsToPerform[p.Addr] {
-		action := messages_protocol.PinStatePair{}
-		action.Pin = &v.Pin
-		action.State = &v.State
-		actions.Actions = append(actions.Actions, &action)
+	select {
+	case action := <-s.actionsToPerform[p.Addr]:
+		protoAction := messages_protocol.PinStatePair{}
+		protoAction.Pin = &action.Pin
+		protoAction.State = &action.State
+		actions.Actions = []*messages_protocol.PinStatePair{&protoAction}
+	case <-time.After(time.Second * 2):
+		break
 	}
-	delete(s.actionsToPerform, p.Addr)
 	return &actions, nil
 }

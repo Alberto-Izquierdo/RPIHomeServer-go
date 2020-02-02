@@ -111,14 +111,10 @@ func TestCheckForActions(t *testing.T) {
 	registerPinsToGRPCServer(client, clientConfig)
 
 	clientOutputChannel := make(chan configuration_loader.Action)
-	err := checkForActions(client, clientOutputChannel)
-	if err != nil {
-		t.Errorf("Check for actions should not return an error even if there are no actions to perform, instead it go %s", err.Error())
-	}
-	serverInputChannel <- configuration_loader.Action{"pin2", true}
-	<-serverOutputChannel
 
 	go checkForActions(client, clientOutputChannel)
+	serverInputChannel <- configuration_loader.Action{"pin2", true}
+	<-serverOutputChannel
 
 	action := <-clientOutputChannel
 	if action.Pin != "pin2" {
@@ -127,7 +123,7 @@ func TestCheckForActions(t *testing.T) {
 		t.Error("Action state received should be \"true\"")
 	}
 
-	err = unregisterPins(client)
+	err := unregisterPins(client)
 	if err != nil {
 		t.Errorf("Valid unregister should not return an error: %s", err.Error())
 	}
@@ -148,6 +144,6 @@ func TestRun(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 
-	serverExitChannel <- true
 	clientExitChannel <- true
+	serverExitChannel <- true
 }
