@@ -14,24 +14,24 @@ import (
 
 func TestWrongConfig(t *testing.T) {
 	var config configuration_loader.InitialConfiguration
-	err := SetupAndRun(config, nil, nil)
+	err := SetupAndRun(config, nil, nil, nil)
 	exitChannel := make(chan bool)
 	if err == nil {
 		t.Errorf("Empty config should return an error")
 	}
 	config.ServerConfiguration = &configuration_loader.ServerConfiguration{}
-	err = SetupAndRun(config, nil, exitChannel)
+	err = SetupAndRun(config, nil, nil, exitChannel)
 	if err == nil {
 		t.Errorf("Empty server port config should return an error")
 	}
 	config.ServerConfiguration.GRPCServerPort = -8080
-	err = SetupAndRun(config, nil, exitChannel)
+	err = SetupAndRun(config, nil, nil, exitChannel)
 	if err == nil {
 		t.Errorf("Negative server port config should return an error")
 	}
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"pin1", 90})
 	config.ServerConfiguration.GRPCServerPort = 8080
-	err = SetupAndRun(config, nil, exitChannel)
+	err = SetupAndRun(config, nil, nil, exitChannel)
 	if err != nil {
 		t.Errorf("Correct server config should not return an error")
 	}

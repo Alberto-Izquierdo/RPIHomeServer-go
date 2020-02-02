@@ -11,33 +11,37 @@ import (
 	"google.golang.org/grpc"
 )
 
-func RunClient(config configuration_loader.InitialConfiguration, exitChannel chan bool, outputChannel chan configuration_loader.Action) {
+func Run(config configuration_loader.InitialConfiguration, exitChannel chan bool, outputChannel chan configuration_loader.Action) error {
 	client, connection, err := connectToGrpcServer(config)
-	defer connection.Close()
 	if err != nil {
-		fmt.Println("There was an error connecting to the gRPC server: ", err)
-		return
+		return errors.New("There was an error connecting to the gRPC server: " + err.Error())
 	}
 	err = registerPinsToGRPCServer(client, config)
 	if err != nil {
-		fmt.Println("There was an error registering pins in gRPC client: ", err)
-		return
+		return errors.New("There was an error connecting to the gRPC server: " + err.Error())
 	}
-	for {
-		select {
-		case <-exitChannel:
-			err = unregisterPins(client)
-			if err != nil {
-				fmt.Println("There was an error unregistering in gRPC client: ", err)
-			}
-			return
-		default:
-			err = checkForActions(client, outputChannel)
-			if err != nil {
-				fmt.Println("There was an error checking actions in gRPC client: ", err)
+	go func() {
+		for {
+			select {
+			case <-exitChannel:
+				err = unregisterPins(client)
+				if err != nil {
+					fmt.Println("There was an error unregistering in gRPC client: ", err.Error())
+				}
+				fmt.Println("Exit signal received in gRPC client")
+				exitChannel <- true
+				return
+			default:
+				err = checkForActions(client, outputChannel)
+				if err != nil {
+					fmt.Println("There was an error checking actions in gRPC client: ", err.Error())
+					time.Sleep(1 * time.Second)
+				}
 			}
 		}
-	}
+		defer connection.Close()
+	}()
+	return nil
 }
 
 func connectToGrpcServer(config configuration_loader.InitialConfiguration) (client messages_protocol.RPIHomeServerServiceClient, connection *grpc.ClientConn, err error) {

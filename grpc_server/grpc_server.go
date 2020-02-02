@@ -3,6 +3,7 @@ package grpc_server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"strconv"
 
@@ -12,7 +13,7 @@ import (
 	"google.golang.org/grpc/peer"
 )
 
-func SetupAndRun(config configuration_loader.InitialConfiguration, inputChannel chan configuration_loader.Action, exitChannel chan bool) error {
+func SetupAndRun(config configuration_loader.InitialConfiguration, inputChannel chan configuration_loader.Action, responsesChannel chan string, exitChannel chan bool) error {
 	if config.ServerConfiguration == nil {
 		return errors.New("Server parameters not set in the configuration file")
 	}
@@ -28,31 +29,45 @@ func SetupAndRun(config configuration_loader.InitialConfiguration, inputChannel 
 	for _, pin := range config.PinsActive {
 		pinsRegistered = append(pinsRegistered, pin.Name)
 	}
-	clientsRegistered := make(map[net.Addr][]string)
-	conn := net.TCPConn{}
-	clientsRegistered[conn.LocalAddr()] = pinsRegistered
-	rpiServer := rpiHomeServer{nil, clientsRegistered, make(map[net.Addr][]configuration_loader.Action)}
+	rpiServer := rpiHomeServer{nil, make(map[net.Addr][]string), make(map[net.Addr][]configuration_loader.Action)}
 	messages_protocol.RegisterRPIHomeServerServiceServer(server, &rpiServer)
-	go run(server, &rpiServer, &lis, exitChannel, inputChannel)
+	go run(server, &rpiServer, &lis, exitChannel, inputChannel, responsesChannel)
 	return nil
 }
 
-func run(server *grpc.Server, rpiServer *rpiHomeServer, listener *net.Listener, exitChannel chan bool, inputChannel chan configuration_loader.Action) {
+func run(server *grpc.Server, rpiServer *rpiHomeServer, listener *net.Listener, exitChannel chan bool, inputChannel chan configuration_loader.Action, responsesChannel chan string) {
 	go server.Serve(*listener)
 	for {
 		select {
 		case <-exitChannel:
 			server.GracefulStop()
+			fmt.Println("Exit signal received in gRPC server")
+			exitChannel <- true
 			return
 		case action := <-inputChannel:
-			for client, pins := range rpiServer.clientsRegistered {
-				for _, pin := range pins {
-					if pin == action.Pin {
-						rpiServer.actionsToPerform[client] = append(rpiServer.actionsToPerform[client], action)
+			response := ""
+			if action.Pin == "start" {
+				for _, pins := range rpiServer.clientsRegistered {
+					for _, pin := range pins {
+						response += pin + " "
 					}
 				}
+			} else {
+				response = "Action does not exist"
+				for client, pins := range rpiServer.clientsRegistered {
+					for _, pin := range pins {
+						if pin == action.Pin {
+							rpiServer.actionsToPerform[client] = append(rpiServer.actionsToPerform[client], action)
+							response = "Action received!"
+							continue
+						}
+					}
+				}
+				if response == "" {
+					response = "Action does not exist"
+				}
 			}
-			break
+			responsesChannel <- response
 		}
 	}
 }
@@ -103,6 +118,7 @@ func (s *rpiHomeServer) UnregisterToServer(ctx context.Context, empty *messages_
 }
 
 func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_protocol.Empty) (*messages_protocol.ActionsToPerform, error) {
+	// TODO: wait for actions for this client (make use of a channel for each client) instead of looping asking for actions
 	p, ok := peer.FromContext(ctx)
 	if !ok {
 		return nil, errors.New("Error while extracting the peer from context")
