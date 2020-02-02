@@ -63,7 +63,11 @@ func main() {
 
 	if len(config.AutomaticMessages) > 0 {
 		exitChannels = append(exitChannels, make(chan bool))
-		go message_generator.Run(config.AutomaticMessages, gRPCClientActionsChannel, exitChannels[len(exitChannels)-1])
+		err = message_generator.Run(config.AutomaticMessages, gRPCClientActionsChannel, exitChannels[len(exitChannels)-1])
+		if err != nil {
+			fmt.Println("Error while setting up message generator: " + err.Error())
+			return
+		}
 	}
 	fmt.Println("Waiting for messages")
 	var exit = false
