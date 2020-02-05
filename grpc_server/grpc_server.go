@@ -30,7 +30,7 @@ func SetupAndRun(config configuration_loader.InitialConfiguration, inputChannel 
 	for _, pin := range config.PinsActive {
 		pinsRegistered = append(pinsRegistered, pin.Name)
 	}
-	rpiServer := rpiHomeServer{nil, make(map[net.Addr][]string), make(map[net.Addr]chan configuration_loader.Action)}
+	rpiServer := rpiHomeServer{nil, make(map[net.Addr]dateStringsPair), make(map[net.Addr]chan configuration_loader.Action)}
 	messages_protocol.RegisterRPIHomeServerServiceServer(server, &rpiServer)
 	go run(server, &rpiServer, &lis, exitChannel, inputChannel, responsesChannel)
 	return nil
@@ -48,15 +48,11 @@ func run(server *grpc.Server, rpiServer *rpiHomeServer, listener *net.Listener, 
 		case action := <-inputChannel:
 			response := ""
 			if action.Pin == "start" {
-				for _, pins := range rpiServer.clientsRegistered {
-					for _, pin := range pins {
-						response += pin + " "
-					}
-				}
+				response = rpiServer.getPinsAndUpdateMap()
 			} else {
 				response = "Action does not exist"
 				for client, pins := range rpiServer.clientsRegistered {
-					for _, pin := range pins {
+					for _, pin := range pins.Pins {
 						if pin == action.Pin {
 							rpiServer.actionsToPerform[client] <- action
 							response = "Action received!"
@@ -75,8 +71,27 @@ func run(server *grpc.Server, rpiServer *rpiHomeServer, listener *net.Listener, 
 
 type rpiHomeServer struct {
 	messages_protocol.RPIHomeServerServiceServer
-	clientsRegistered map[net.Addr][]string
+	clientsRegistered map[net.Addr]dateStringsPair
 	actionsToPerform  map[net.Addr]chan configuration_loader.Action
+}
+
+type dateStringsPair struct {
+	LastTimeConnected time.Time
+	Pins              []string
+}
+
+func (s *rpiHomeServer) getPinsAndUpdateMap() string {
+	response := ""
+	for key, pins := range s.clientsRegistered {
+		if time.Now().Sub(pins.LastTimeConnected) > time.Second*6 {
+			s.removeClient(key)
+		} else {
+			for _, pin := range pins.Pins {
+				response += pin + " "
+			}
+		}
+	}
+	return response
 }
 
 func (s *rpiHomeServer) RegisterToServer(ctx context.Context, message *messages_protocol.RegistrationMessage) (*messages_protocol.RegistrationResult, error) {
@@ -84,7 +99,7 @@ func (s *rpiHomeServer) RegisterToServer(ctx context.Context, message *messages_
 	pinsRepeated := []string{}
 	for _, messagePin := range message.PinsToHandle {
 		for _, clientPins := range s.clientsRegistered {
-			for _, configPin := range clientPins {
+			for _, configPin := range clientPins.Pins {
 				if messagePin == configPin {
 					pinsRepeated = append(pinsRepeated, messagePin)
 				}
@@ -96,7 +111,7 @@ func (s *rpiHomeServer) RegisterToServer(ctx context.Context, message *messages_
 		if !ok {
 			return nil, errors.New("Error while extracting the peer from context")
 		}
-		s.clientsRegistered[p.Addr] = message.PinsToHandle
+		s.clientsRegistered[p.Addr] = dateStringsPair{time.Now(), message.PinsToHandle}
 		s.actionsToPerform[p.Addr] = make(chan configuration_loader.Action)
 		code := messages_protocol.RegistrationStatusCodes_Ok
 		result.Result = &code
@@ -113,9 +128,13 @@ func (s *rpiHomeServer) UnregisterToServer(ctx context.Context, empty *messages_
 	if !ok {
 		return nil, errors.New("Error while extracting the peer from context")
 	}
-	delete(s.clientsRegistered, p.Addr)
-	delete(s.actionsToPerform, p.Addr)
+	s.removeClient(p.Addr)
 	return &messages_protocol.Empty{}, nil
+}
+
+func (s *rpiHomeServer) removeClient(client net.Addr) {
+	delete(s.clientsRegistered, client)
+	delete(s.actionsToPerform, client)
 }
 
 func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_protocol.Empty) (*messages_protocol.ActionsToPerform, error) {
@@ -133,5 +152,7 @@ func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_pro
 	case <-time.After(time.Second * 2):
 		break
 	}
+	previousClientData := s.clientsRegistered[p.Addr]
+	s.clientsRegistered[p.Addr] = dateStringsPair{time.Now(), previousClientData.Pins}
 	return &actions, nil
 }
