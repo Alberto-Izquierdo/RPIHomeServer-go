@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"testing"
+	"time"
 
 	messages_protocol "github.com/Alberto-Izquierdo/RPIHomeServer-go/messages"
 	"google.golang.org/grpc/peer"
@@ -42,7 +43,7 @@ func TestRegisterToServer(t *testing.T) {
 	conn := net.TCPConn{}
 	p := peer.Peer{conn.LocalAddr(), nil}
 	ctx := peer.NewContext(context.TODO(), &p)
-	server := rpiHomeServer{nil, make(map[net.Addr][]string), make(map[net.Addr]chan configuration_loader.Action)}
+	server := rpiHomeServer{nil, make(map[net.Addr]dateStringsPair), make(map[net.Addr]chan configuration_loader.Action)}
 	message0 := messages_protocol.RegistrationMessage{}
 	message0.PinsToHandle = []string{"pin1"}
 	result, _ := server.RegisterToServer(ctx, &message0)
@@ -54,10 +55,10 @@ func TestRegisterToServer(t *testing.T) {
 		t.Errorf("After a successfull registration, the clients registered should contain one element, instead it contains %d", len(server.clientsRegistered))
 	} else {
 		pins := server.clientsRegistered[conn.LocalAddr()]
-		if len(pins) != 1 {
-			t.Errorf("After a successfull registration, the pins registered for the client should contain one element, instead it contains %d", len(pins))
-		} else if pins[0] != "pin1" {
-			t.Errorf("After a successfull registration, the first pin registered should be \"pin1\", instead it is %s", pins[0])
+		if len(pins.Pins) != 1 {
+			t.Errorf("After a successfull registration, the pins registered for the client should contain one element, instead it contains %d", len(pins.Pins))
+		} else if pins.Pins[0] != "pin1" {
+			t.Errorf("After a successfull registration, the first pin registered should be \"pin1\", instead it is %s", pins.Pins[0])
 		}
 	}
 	message1 := messages_protocol.RegistrationMessage{}
@@ -76,7 +77,7 @@ func TestUnregisterToServer(t *testing.T) {
 	conn := net.TCPConn{}
 	p := peer.Peer{conn.LocalAddr(), nil}
 	ctx := peer.NewContext(context.TODO(), &p)
-	server := rpiHomeServer{nil, map[net.Addr][]string{conn.LocalAddr(): []string{"pin1"}}, nil}
+	server := rpiHomeServer{nil, map[net.Addr]dateStringsPair{conn.LocalAddr(): dateStringsPair{time.Now(), []string{"pin1"}}}, nil}
 	if len(server.clientsRegistered) != 1 {
 		t.Errorf("The server should contain an element initially, instead it contains %d", len(server.clientsRegistered))
 	}
@@ -93,7 +94,7 @@ func TestCheckForActions(t *testing.T) {
 	conn := net.TCPConn{}
 	p := peer.Peer{conn.LocalAddr(), nil}
 	ctx := peer.NewContext(context.TODO(), &p)
-	server := rpiHomeServer{nil, make(map[net.Addr][]string), make(map[net.Addr]chan configuration_loader.Action)}
+	server := rpiHomeServer{nil, make(map[net.Addr]dateStringsPair), make(map[net.Addr]chan configuration_loader.Action)}
 	server.actionsToPerform[conn.LocalAddr()] = make(chan configuration_loader.Action)
 	go func() {
 		server.actionsToPerform[conn.LocalAddr()] <- configuration_loader.Action{"pin1", false}
@@ -109,5 +110,20 @@ func TestCheckForActions(t *testing.T) {
 		t.Errorf("Element 0 state from check for actions should be false")
 	} else if len(server.actionsToPerform[conn.LocalAddr()]) != 0 {
 		t.Errorf("After receiving the actions to perform, they should be removed")
+	}
+}
+
+func TestClientDisconnection(t *testing.T) {
+	conn := net.TCPConn{}
+	server := rpiHomeServer{nil, make(map[net.Addr]dateStringsPair), make(map[net.Addr]chan configuration_loader.Action)}
+	server.clientsRegistered[conn.LocalAddr()] = dateStringsPair{time.Now(), []string{"pin1"}}
+	pins := server.getPinsAndUpdateMap()
+	if pins != "pin1 " {
+		t.Errorf("When there is a client registered with a pin, it should be returned")
+	}
+	time.Sleep(time.Second * 8)
+	pins = server.getPinsAndUpdateMap()
+	if pins != "" {
+		t.Errorf("After the timeout has passed, the string returned should be empty")
 	}
 }
