@@ -54,7 +54,7 @@ func main() {
 	// gRPC client
 	gRPCClientActionsChannel := make(chan configuration_loader.Action)
 	exitChannels = append(exitChannels, make(chan bool))
-	err = grpc_client.Run(config, exitChannels[len(exitChannels)-1], gRPCClientActionsChannel)
+	err = grpc_client.Run(config, exitChannels[len(exitChannels)-1], gRPCClientActionsChannel, mainExitChannel)
 	if err != nil {
 		fmt.Println("Error while setting up gRPC client: " + err.Error())
 		return

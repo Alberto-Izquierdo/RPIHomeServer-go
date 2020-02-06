@@ -14,6 +14,8 @@ import (
 	"google.golang.org/grpc/peer"
 )
 
+const timeWaitingForNewActions time.Duration = 2 * time.Second
+
 func SetupAndRun(config configuration_loader.InitialConfiguration, inputChannel chan configuration_loader.Action, responsesChannel chan string, exitChannel chan bool) error {
 	if config.ServerConfiguration == nil {
 		return errors.New("Server parameters not set in the configuration file")
@@ -149,7 +151,7 @@ func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_pro
 		protoAction.Pin = &action.Pin
 		protoAction.State = &action.State
 		actions.Actions = []*messages_protocol.PinStatePair{&protoAction}
-	case <-time.After(time.Second * 2):
+	case <-time.After(timeWaitingForNewActions):
 		break
 	}
 	previousClientData := s.clientsRegistered[p.Addr]
