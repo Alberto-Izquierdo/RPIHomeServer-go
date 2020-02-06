@@ -11,7 +11,10 @@ import (
 	"google.golang.org/grpc"
 )
 
-func Run(config configuration_loader.InitialConfiguration, exitChannel chan bool, outputChannel chan configuration_loader.Action) error {
+const timeBetweenReconnectionAttempts time.Duration = 10 * time.Second
+const numberOfReconnectingAttemptsUntilShutdown int = 30
+
+func Run(config configuration_loader.InitialConfiguration, exitChannel chan bool, outputChannel chan configuration_loader.Action, mainExitChannel chan bool) error {
 	client, connection, err := connectToGrpcServer(config)
 	if err != nil {
 		return errors.New("There was an error connecting to the gRPC server: " + err.Error())
@@ -35,7 +38,34 @@ func Run(config configuration_loader.InitialConfiguration, exitChannel chan bool
 				err = checkForActions(client, outputChannel)
 				if err != nil {
 					fmt.Println("There was an error checking actions in gRPC client: ", err.Error())
+					fmt.Println("Trying to reconnect to server...")
 					time.Sleep(1 * time.Second)
+					attempts := 0
+					for err != nil {
+						if attempts < numberOfReconnectingAttemptsUntilShutdown {
+							err = registerPinsToGRPCServer(client, config)
+							if err != nil {
+								select {
+								case <-exitChannel:
+									fmt.Println("Exit signal received in gRPC client")
+									exitChannel <- true
+									return
+								case <-time.After(timeBetweenReconnectionAttempts):
+									fmt.Println("There was an error connecting to the gRPC server: " + err.Error())
+									fmt.Println("Trying again in " + timeBetweenReconnectionAttempts.String() + "...")
+									attempts += 1
+								}
+							} else {
+								fmt.Println("Reconnected!")
+								break
+							}
+						} else {
+							fmt.Println("Could not reconnect to the server, closing the application...")
+							mainExitChannel <- true
+							time.Sleep(time.Second * 1)
+							break
+						}
+					}
 				}
 			}
 		}

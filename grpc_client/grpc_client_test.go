@@ -140,7 +140,7 @@ func TestRun(t *testing.T) {
 
 	var clientConfig configuration_loader.InitialConfiguration
 	clientConfig.GRPCServerIp = "localhost:8080"
-	go Run(clientConfig, clientExitChannel, clientOutputChannel)
+	go Run(clientConfig, clientExitChannel, clientOutputChannel, nil)
 
 	time.Sleep(1 * time.Second)
 
