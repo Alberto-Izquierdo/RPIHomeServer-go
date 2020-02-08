@@ -14,7 +14,12 @@ import (
 const timeBetweenReconnectionAttempts time.Duration = 10 * time.Second
 const numberOfReconnectingAttemptsUntilShutdown int = 30
 
+const EmptyPinsMessage string = "There are not any pins active, gRPC client will not be run"
+
 func Run(config configuration_loader.InitialConfiguration, exitChannel chan bool, outputChannel chan configuration_loader.Action, mainExitChannel chan bool) error {
+	if len(config.PinsActive) == 0 {
+		return errors.New(EmptyPinsMessage)
+	}
 	client, connection, err := connectToGrpcServer(config)
 	if err != nil {
 		return errors.New("There was an error connecting to the gRPC server: " + err.Error())

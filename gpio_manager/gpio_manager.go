@@ -12,9 +12,11 @@ type PairNamePin struct {
 	Pin  int
 }
 
+const EmptyPins string = "Pins can not be empty"
+
 func Setup(pins []PairNamePin) (err error) {
 	if len(pins) == 0 {
-		err = errors.New("pins can not be empty")
+		err = errors.New(EmptyPins)
 		return err
 	}
 	manager.PinStates = make(map[string]*pinState)

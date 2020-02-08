@@ -27,8 +27,12 @@ func main() {
 	err = gpio_manager.Setup(config.PinsActive)
 	defer gpio_manager.ClearAllPins()
 	if err != nil {
-		fmt.Println("There was an error setting up the GPIO manager: ", err.Error())
-		return
+		if err.Error() == gpio_manager.EmptyPins {
+			fmt.Println("There are not any pins active, the program will act just as server")
+		} else {
+			fmt.Println("There was an error setting up the GPIO manager: ", err.Error())
+			return
+		}
 	}
 	// general variables
 	var exitChannels []chan bool
@@ -56,8 +60,14 @@ func main() {
 	exitChannels = append(exitChannels, make(chan bool))
 	err = grpc_client.Run(config, exitChannels[len(exitChannels)-1], gRPCClientActionsChannel, mainExitChannel)
 	if err != nil {
-		fmt.Println("Error while setting up gRPC client: " + err.Error())
-		return
+		exitChannels = exitChannels[:len(exitChannels)-1]
+		if err.Error() == grpc_client.EmptyPinsMessage || config.ServerConfiguration != nil {
+			fmt.Println(err.Error())
+		} else {
+			fmt.Println("Error while setting up gRPC client: " + err.Error())
+			return
+		}
+	} else {
 	}
 	//TODO: gRPCClientMessagesChannel := make(chan string)
 
