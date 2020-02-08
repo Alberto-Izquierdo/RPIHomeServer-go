@@ -134,6 +134,7 @@ func getMessagesAvailable(outputChannel chan configuration_loader.Action, inputC
 
 func createMarkupForMessages(messages []string, chatId int64, replyToMessageId int) tgbotapi.MessageConfig {
 	markup := tgbotapi.NewReplyKeyboard()
+	markup.Keyboard = append(markup.Keyboard, tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton("/start")))
 	for _, value := range messages {
 		markup.Keyboard = append(markup.Keyboard, tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton(value+"On"), tgbotapi.NewKeyboardButton(value+"Off"), tgbotapi.NewKeyboardButton(value+"OnAndOff 2s")))
 	}
