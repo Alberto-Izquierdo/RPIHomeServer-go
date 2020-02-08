@@ -54,6 +54,7 @@ func run(server *grpc.Server, rpiServer *rpiHomeServer, listener *net.Listener, 
 				response = rpiServer.getPinsAndUpdateMap()
 			} else {
 				response = "Action does not exist"
+				rpiServer.mutex.Lock()
 				for client, pins := range rpiServer.clientsRegistered {
 					for _, pin := range pins.Pins {
 						if pin == action.Pin {
@@ -63,6 +64,7 @@ func run(server *grpc.Server, rpiServer *rpiHomeServer, listener *net.Listener, 
 						}
 					}
 				}
+				rpiServer.mutex.Unlock()
 				if response == "" {
 					response = "Action does not exist"
 				}

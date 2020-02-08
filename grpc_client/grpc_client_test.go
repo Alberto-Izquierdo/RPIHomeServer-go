@@ -60,6 +60,7 @@ func TestConnectionToServer(t *testing.T) {
 	}
 
 	serverExitChannel <- true
+	<-serverExitChannel
 	time.Sleep(100 * time.Millisecond)
 }
 
@@ -98,6 +99,7 @@ func TestRegisterPinsToGRPCServer(t *testing.T) {
 	}
 
 	serverExitChannel <- true
+	<-serverExitChannel
 	time.Sleep(100 * time.Millisecond)
 }
 
@@ -129,6 +131,7 @@ func TestCheckForActions(t *testing.T) {
 	}
 
 	serverExitChannel <- true
+	<-serverExitChannel
 	time.Sleep(100 * time.Millisecond)
 }
 
@@ -145,5 +148,7 @@ func TestRun(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	clientExitChannel <- true
+	<-clientExitChannel
 	serverExitChannel <- true
+	<-serverExitChannel
 }
