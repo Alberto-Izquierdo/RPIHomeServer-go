@@ -20,7 +20,7 @@ func TestWrongConfig(t *testing.T) {
 	if err == nil {
 		t.Errorf("Wrong config should return an error")
 	}
-	config.GRPCServerIp = "localhost:8088"
+	config.GRPCServerIp = "localhost:8080"
 	_, _, err = connectToGrpcServer(config)
 	if err == nil {
 		t.Errorf("Connecting to a non existing server should return an error")
@@ -29,8 +29,7 @@ func TestWrongConfig(t *testing.T) {
 
 func createServer(t *testing.T) (chan bool, chan configuration_loader.Action, chan string) {
 	var serverConfig configuration_loader.InitialConfiguration
-	serverConfig.ServerConfiguration = &configuration_loader.ServerConfiguration{}
-	serverConfig.ServerConfiguration.GRPCServerPort = 8080
+	serverConfig.ServerConfiguration = &configuration_loader.ServerConfiguration{GRPCServerPort: 8080}
 	serverConfig.PinsActive = append(serverConfig.PinsActive, gpio_manager.PairNamePin{"pin1", 90})
 	serverExitChannel := make(chan bool)
 	outputChannel := make(chan configuration_loader.Action)
@@ -45,9 +44,7 @@ func createServer(t *testing.T) (chan bool, chan configuration_loader.Action, ch
 func TestConnectionToServer(t *testing.T) {
 	serverExitChannel, _, _ := createServer(t)
 
-	var clientConfig configuration_loader.InitialConfiguration
-	//TODO: Assert pins is not empty
-	clientConfig.GRPCServerIp = "localhost:8080"
+	clientConfig := configuration_loader.InitialConfiguration{GRPCServerIp: "localhost:8080"}
 	{
 		client, connection, err := connectToGrpcServer(clientConfig)
 		if err != nil {
@@ -141,9 +138,16 @@ func TestRun(t *testing.T) {
 	clientExitChannel := make(chan bool)
 	clientOutputChannel := make(chan configuration_loader.Action)
 
-	var clientConfig configuration_loader.InitialConfiguration
-	clientConfig.GRPCServerIp = "localhost:8080"
-	go Run(clientConfig, clientExitChannel, clientOutputChannel, nil)
+	clientConfig := configuration_loader.InitialConfiguration{GRPCServerIp: "localhost:8080"}
+	err := Run(clientConfig, clientExitChannel, clientOutputChannel, nil)
+	if err == nil {
+		t.Errorf("Config without pins should return an error")
+	}
+	clientConfig.PinsActive = append(clientConfig.PinsActive, gpio_manager.PairNamePin{"pin1", 90})
+	err = Run(clientConfig, clientExitChannel, clientOutputChannel, nil)
+	if err != nil {
+		t.Errorf("Correct config should not return an error")
+	}
 
 	time.Sleep(1 * time.Second)
 
