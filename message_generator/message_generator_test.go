@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestActionTwoSecondsDelay(t *testing.T) {
@@ -15,16 +16,11 @@ func TestActionTwoSecondsDelay(t *testing.T) {
 	c := make(chan configuration_loader.Action)
 	exitChan := make(chan bool)
 	err := Run(actionTimes, c, exitChan)
-	if err != nil {
-		t.Errorf("Correct message generator setup should not return an error, instead it returned" + err.Error())
-	}
+	assert.Nil(t, err, nil)
 	select {
 	case nextAction := <-c:
-		if nextAction.Pin != "light" {
-			t.Errorf("Action pin should be light, instead it is: %s", nextAction.Pin)
-		} else if nextAction.State != true {
-			t.Errorf("Pin value should be true")
-		}
+		assert.Equal(t, nextAction.Pin, "light", "Action pin should be light, instead it is: %s", nextAction.Pin)
+		assert.Equal(t, nextAction.State, true, "Pin value should be true")
 		exitChan <- true
 		<-exitChan
 	case _ = <-exitChan:

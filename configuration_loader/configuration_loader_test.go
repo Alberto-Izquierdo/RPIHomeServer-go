@@ -2,19 +2,19 @@ package configuration_loader
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestLoadConfigurationFromPathInvalidPath(t *testing.T) {
-	if _, err := LoadConfigurationFromPath("non_existing_file.json"); err == nil {
-		t.Errorf("LoadConfigurationFromPath() should return an error with an invalid path")
-	}
+	_, err := LoadConfigurationFromPath("non_existing_file.json")
+	assert.NotEqual(t, err, nil, "LoadConfigurationFromPath() should return an error with an invalid path")
 }
 
 func TestLoadConfigurationFromStringEmptyFile(t *testing.T) {
 	content := []byte("")
-	if _, err := loadConfigurationFromFileContent(content); err == nil {
-		t.Errorf("loadConfigurationFromFileContent() should return an error")
-	}
+	_, err := loadConfigurationFromFileContent(content)
+	assert.NotEqual(t, err, nil, "loadConfigurationFromFileContent() should return an error")
 }
 
 func TestLoadConfigurationFromStringEmptyPinsActive(t *testing.T) {
@@ -22,9 +22,8 @@ func TestLoadConfigurationFromStringEmptyPinsActive(t *testing.T) {
 	{
 		"GRPCServerIp": "192.168.2.160:8000"
 	}`)
-	if _, err := loadConfigurationFromFileContent(content); err == nil {
-		t.Errorf("loadConfigurationFromFileContent() with empty PinsActive content should return an error")
-	}
+	_, err := loadConfigurationFromFileContent(content)
+	assert.NotEqual(t, err, nil, "loadConfigurationFromFileContent() with empty PinsActive content should return an error")
 }
 
 func TestLoadConfigurationFromStringWithInvalidTypes(t *testing.T) {
@@ -35,9 +34,8 @@ func TestLoadConfigurationFromStringWithInvalidTypes(t *testing.T) {
 			1234
 		]
 	}`)
-	if _, err := loadConfigurationFromFileContent(content); err == nil {
-		t.Errorf("loadConfigurationFromFileContent() with type mismatch should return an error")
-	}
+	_, err := loadConfigurationFromFileContent(content)
+	assert.NotEqual(t, err, nil, "loadConfigurationFromFileContent() with type mismatch should return an error")
 }
 
 func TestLoadClientConfigurationFromStringWithNoTelegramToken(t *testing.T) {
@@ -55,9 +53,8 @@ func TestLoadClientConfigurationFromStringWithNoTelegramToken(t *testing.T) {
 			]
 		}
 	}`)
-	if _, err := loadConfigurationFromFileContent(content); err == nil {
-		t.Errorf("loadConfigurationFromFileContent() with not telegram token should return an error")
-	}
+	_, err := loadConfigurationFromFileContent(content)
+	assert.NotEqual(t, err, nil, "loadConfigurationFromFileContent() with not telegram token should return an error")
 }
 
 func TestLoadClientConfigurationFromStringWithNoAuthorizedUsers(t *testing.T) {
@@ -73,9 +70,8 @@ func TestLoadClientConfigurationFromStringWithNoAuthorizedUsers(t *testing.T) {
 			"TelegramBotToken": "randomToken"
 		}
 	}`)
-	if _, err := loadConfigurationFromFileContent(content); err == nil {
-		t.Errorf("loadConfigurationFromFileContent() with empty no authorized users should return an error")
-	}
+	_, err := loadConfigurationFromFileContent(content)
+	assert.NotEqual(t, err, nil, "loadConfigurationFromFileContent() with empty no authorized users should return an error")
 }
 
 func TestLoadClientConfigurationFromStringWithBothTelegramAndGrpcClientData(t *testing.T) {
@@ -95,9 +91,8 @@ func TestLoadClientConfigurationFromStringWithBothTelegramAndGrpcClientData(t *t
 			]
 		}
 	}`)
-	if _, err := loadConfigurationFromFileContent(content); err == nil {
-		t.Error("loadConfigurationFromFileContent() with both telegram bot and gRPC data should return an error")
-	}
+	_, err := loadConfigurationFromFileContent(content)
+	assert.NotEqual(t, err, nil, "loadConfigurationFromFileContent() with both telegram bot and gRPC data should return an error")
 }
 
 func TestLoadClientConfigurationFromStringWithBothGrpcClientAndServer(t *testing.T) {
@@ -114,9 +109,8 @@ func TestLoadClientConfigurationFromStringWithBothGrpcClientAndServer(t *testing
 			}
 		]
 	}`)
-	if _, err := loadConfigurationFromFileContent(content); err == nil {
-		t.Error("loadConfigurationFromFileContent() with both gRPC client and server data should return an error")
-	}
+	_, err := loadConfigurationFromFileContent(content)
+	assert.NotEqual(t, err, nil, "loadConfigurationFromFileContent() with both gRPC client and server data should return an error")
 }
 
 func TestLoadClientConfigurationFromStringWithNotGrpcServerPort(t *testing.T) {
@@ -136,9 +130,8 @@ func TestLoadClientConfigurationFromStringWithNotGrpcServerPort(t *testing.T) {
 		}
 	}`)
 
-	if _, err := loadConfigurationFromFileContent(content); err == nil {
-		t.Errorf("loadConfigurationFromFileContent() with no gRPC server port should return an error")
-	}
+	_, err := loadConfigurationFromFileContent(content)
+	assert.NotEqual(t, err, nil, "loadConfigurationFromFileContent() with no gRPC server port should return an error")
 }
 
 func TestLoadClientConfigurationFromStringWithCorrectTelegramBotData(t *testing.T) {
@@ -159,27 +152,17 @@ func TestLoadClientConfigurationFromStringWithCorrectTelegramBotData(t *testing.
 		}
 	}`)
 
-	if config, err := loadConfigurationFromFileContent(content); err != nil {
-		t.Errorf("loadConfigurationFromFileContent() with proper content should not return an error, instead it returned %s", err)
-	} else if config.GRPCServerIp != "localhost:8080" {
-		t.Errorf("The ip should be \"localhost:8080\", instead, it is %s", config.GRPCServerIp)
-	} else if len(config.PinsActive) == 0 {
-		t.Errorf("The array of pins should not be empty")
-	} else if config.PinsActive[0].Name != "light" {
-		t.Errorf("The name of the pin should be \"light\", instead it is %s", config.PinsActive[0].Name)
-	} else if config.PinsActive[0].Pin != 18 {
-		t.Errorf("The value of the pin should be 18, instead it is %d", config.PinsActive[0].Pin)
-	} else if config.ServerConfiguration == nil {
-		t.Errorf("The server configuration should not be nil")
-	} else if config.ServerConfiguration.TelegramBotToken != "randomToken" {
-		t.Errorf("The telegram bot token should be \"randomToken\", instead it is %s", config.ServerConfiguration.TelegramBotToken)
-	} else if len(config.ServerConfiguration.TelegramAuthorizedUsers) != 1 {
-		t.Errorf("The authorized users array should contain one elements")
-	} else if config.ServerConfiguration.TelegramAuthorizedUsers[0] != 1234 {
-		t.Errorf("The authorized users array should contain 1234, instead it contains %d", config.ServerConfiguration.TelegramAuthorizedUsers[0])
-	} else if config.ServerConfiguration.GRPCServerPort != 8080 {
-		t.Errorf("The gRPC server por should be 8080, instead it is %d", config.ServerConfiguration.GRPCServerPort)
-	}
+	config, err := loadConfigurationFromFileContent(content)
+	assert.Equal(t, err, nil, "loadConfigurationFromFileContent() with proper content should not return an error, instead it returned %s", err)
+	assert.Equal(t, config.GRPCServerIp, "localhost:8080", "The ip should be \"localhost:8080\", instead, it is %s", config.GRPCServerIp)
+	assert.NotEqual(t, len(config.PinsActive), 0, "The array of pins should not be empty")
+	assert.Equal(t, config.PinsActive[0].Name, "light", "The name of the pin should be \"light\", instead it is %s", config.PinsActive[0].Name)
+	assert.Equal(t, config.PinsActive[0].Pin, 18, "The value of the pin should be 18, instead it is %d", config.PinsActive[0].Pin)
+	assert.NotEqual(t, config.ServerConfiguration, nil, "The server configuration should not be nil")
+	assert.Equal(t, config.ServerConfiguration.TelegramBotToken, "randomToken", "The telegram bot token should be \"randomToken\", instead it is %s", config.ServerConfiguration.TelegramBotToken)
+	assert.Equal(t, len(config.ServerConfiguration.TelegramAuthorizedUsers), 1, "The authorized users array should contain one elements")
+	assert.Equal(t, config.ServerConfiguration.TelegramAuthorizedUsers[0], 1234, "The authorized users array should contain 1234, instead it contains %d", config.ServerConfiguration.TelegramAuthorizedUsers[0])
+	assert.Equal(t, config.ServerConfiguration.GRPCServerPort, 8080, "The gRPC server por should be 8080, instead it is %d", config.ServerConfiguration.GRPCServerPort)
 }
 
 func TestLoadClientConfigurationFromStringWithWrongAutomaticMessages(t *testing.T) {
@@ -209,9 +192,8 @@ func TestLoadClientConfigurationFromStringWithWrongAutomaticMessages(t *testing.
 			}
 		]
 	}`)
-	if _, err := loadConfigurationFromFileContent(content); err == nil {
-		t.Errorf("loadConfigurationFromFileContent() with automatic messages to pins not present in the gpio manager should return an error")
-	}
+	_, err := loadConfigurationFromFileContent(content)
+	assert.NotEqual(t, err, nil, "loadConfigurationFromFileContent() with automatic messages to pins not present in the gpio manager should return an error")
 }
 
 func TestLoadClientConfigurationFromStringWithCorrectGRPCData(t *testing.T) {
@@ -242,17 +224,11 @@ func TestLoadClientConfigurationFromStringWithCorrectGRPCData(t *testing.T) {
 		]
 	}`)
 
-	if config, err := loadConfigurationFromFileContent(content); err != nil {
-		t.Errorf("loadConfigurationFromFileContent() with proper content should not return an error, instead it returned %s", err)
-	} else if config.GRPCServerIp != "192.168.2.160:8000" {
-		t.Errorf("The ip should be empty, instead, it is %s", config.GRPCServerIp)
-	} else if len(config.PinsActive) == 0 {
-		t.Errorf("The array of pins should not be empty")
-	} else if config.PinsActive[0].Name != "light" {
-		t.Errorf("The name of the pin should be \"light\", instead it is %s", config.PinsActive[0].Name)
-	} else if config.PinsActive[0].Pin != 18 {
-		t.Errorf("The value of the pin should be 18, instead it is %d", config.PinsActive[0].Pin)
-	} else if config.ServerConfiguration != nil {
-		t.Errorf("The telegram bot configuration should be nil")
-	}
+	config, err := loadConfigurationFromFileContent(content)
+	assert.Equal(t, err, nil, "loadConfigurationFromFileContent() with proper content should not return an error, instead it returned %s", err)
+	assert.Equal(t, config.GRPCServerIp, "192.168.2.160:8000", "The ip should be empty, instead, it is %s", config.GRPCServerIp)
+	assert.NotEqual(t, len(config.PinsActive), 0, "The array of pins should not be empty")
+	assert.Equal(t, config.PinsActive[0].Name, "light", "The name of the pin should be \"light\", instead it is %s", config.PinsActive[0].Name)
+	assert.Equal(t, config.PinsActive[0].Pin, 18, "The value of the pin should be 18, instead it is %d", config.PinsActive[0].Pin)
+	assert.NotEqual(t, config.ServerConfiguration, nil, "The telegram bot configuration should be nil")
 }
