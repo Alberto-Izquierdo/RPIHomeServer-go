@@ -36,6 +36,8 @@ func TestLaunchTelegramBot(t *testing.T) {
 	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Light", 1})
 	go func() {
 		time.Sleep(2 * time.Second)
+		telegramExitChannel <- true
+		<-telegramExitChannel
 		close(telegramExitChannel)
 	}()
 	LaunchTelegramBot(config, telegramOutputChannel, telegramInputChannel, telegramExitChannel)
