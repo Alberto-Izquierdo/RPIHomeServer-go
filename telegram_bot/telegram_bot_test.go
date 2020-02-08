@@ -7,6 +7,7 @@ import (
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/gpio_manager"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestWrongConfig(t *testing.T) {
@@ -19,9 +20,7 @@ func TestWrongConfig(t *testing.T) {
 	config.ServerConfiguration.TelegramBotToken = "asdf"
 	config.ServerConfiguration.TelegramAuthorizedUsers = append(config.ServerConfiguration.TelegramAuthorizedUsers, 1234, 5678)
 	err := LaunchTelegramBot(config, telegramOutputChannel, telegramInputChannel, telegramExitChannel)
-	if err == nil {
-		t.Errorf("Wrong config should return an error")
-	}
+	assert.NotEqual(t, err, nil, "Wrong config should return an error")
 }
 
 func TestLaunchTelegramBot(t *testing.T) {
@@ -46,33 +45,19 @@ func TestLaunchTelegramBot(t *testing.T) {
 func TestGetMessagesAvailableMarkup(t *testing.T) {
 	messages := []string{"Light", "Water"}
 	msg := createMarkupForMessages(messages, 0, 0)
-	if markup, ok := msg.ReplyMarkup.(tgbotapi.ReplyKeyboardMarkup); ok {
-		if len(markup.Keyboard) != 3 {
-			t.Errorf("The message should contain three rows (/start, light and water)")
-		} else if len(markup.Keyboard[0]) != 1 {
-			t.Errorf("The message should contain one column (/start)")
-		} else if markup.Keyboard[0][0].Text != "/start" {
-			t.Errorf("Button should contain \"/start\" and it is \"%s\"", markup.Keyboard[0][0].Text)
-		} else if len(markup.Keyboard[1]) != 3 {
-			t.Errorf("The message should contain three columns (on, off, onAndOff)")
-		} else if markup.Keyboard[1][0].Text != "LightOn" {
-			t.Errorf("Button should contain \"LightOn\" and it is \"%s\"", markup.Keyboard[1][0].Text)
-		} else if markup.Keyboard[1][1].Text != "LightOff" {
-			t.Errorf("Button should contain \"LightOff\" and it is \"%s\"", markup.Keyboard[1][1].Text)
-		} else if markup.Keyboard[1][2].Text != "LightOnAndOff 2s" {
-			t.Errorf("Button should contain \"LightOnAndOff 2s\" and it is \"%s\"", markup.Keyboard[1][2].Text)
-		} else if len(markup.Keyboard[2]) != 3 {
-			t.Errorf("The message should contain three columns (on, off, onAndOff)")
-		} else if markup.Keyboard[2][0].Text != "WaterOn" {
-			t.Errorf("Button should contain \"WaterOn\" and it is \"%s\"", markup.Keyboard[2][0].Text)
-		} else if markup.Keyboard[2][1].Text != "WaterOff" {
-			t.Errorf("Button should contain \"WaterOff\" and it is \"%s\"", markup.Keyboard[2][1].Text)
-		} else if markup.Keyboard[2][2].Text != "WaterOnAndOff 2s" {
-			t.Errorf("Button should contain \"WaterOnAndOff 2s\" and it is \"%s\"", markup.Keyboard[2][2].Text)
-		}
-	} else {
-		t.Errorf("Error getting the message's reply markup")
-	}
+	markup, ok := msg.ReplyMarkup.(tgbotapi.ReplyKeyboardMarkup)
+	assert.True(t, ok, "Error getting the message's reply markup")
+	assert.Equal(t, len(markup.Keyboard), 3, "The message should contain three rows (/start, light and water)")
+	assert.Equal(t, len(markup.Keyboard[0]), 1, "The message should contain one column (/start)")
+	assert.Equal(t, markup.Keyboard[0][0].Text, "/start", "Button should contain \"/start\" and it is \"%s\"", markup.Keyboard[0][0].Text)
+	assert.Equal(t, len(markup.Keyboard[1]), 3, "The message should contain three columns (on, off, onAndOff)")
+	assert.Equal(t, markup.Keyboard[1][0].Text, "LightOn", "Button should contain \"LightOn\" and it is \"%s\"", markup.Keyboard[1][0].Text)
+	assert.Equal(t, markup.Keyboard[1][1].Text, "LightOff", "Button should contain \"LightOff\" and it is \"%s\"", markup.Keyboard[1][1].Text)
+	assert.Equal(t, markup.Keyboard[1][2].Text, "LightOnAndOff 2s", "Button should contain \"LightOnAndOff 2s\" and it is \"%s\"", markup.Keyboard[1][2].Text)
+	assert.Equal(t, len(markup.Keyboard[2]), 3, "The message should contain three columns (on, off, onAndOff)")
+	assert.Equal(t, markup.Keyboard[2][0].Text, "WaterOn", "Button should contain \"WaterOn\" and it is \"%s\"", markup.Keyboard[2][0].Text)
+	assert.Equal(t, markup.Keyboard[2][1].Text, "WaterOff", "Button should contain \"WaterOff\" and it is \"%s\"", markup.Keyboard[2][1].Text)
+	assert.Equal(t, markup.Keyboard[2][2].Text, "WaterOnAndOff 2s", "Button should contain \"WaterOnAndOff 2s\" and it is \"%s\"", markup.Keyboard[2][2].Text)
 }
 
 func TestTurnPinOn(t *testing.T) {
@@ -86,21 +71,15 @@ func TestTurnPinOn(t *testing.T) {
 	}()
 	action := <-telegramOutputChannel
 	telegramInputChannel <- "test"
-	if action.Pin != "Light" {
-		t.Errorf("Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
-	} else if action.State != true {
-		t.Errorf("Action's state should be true")
-	}
+	assert.Equal(t, action.Pin, "Light", "Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
+	assert.Equal(t, action.State, true, "Action's state should be true")
 	go func() {
 		turnPinOn("WaterOn", config, 0, 0, telegramOutputChannel, telegramInputChannel)
 	}()
 	action = <-telegramOutputChannel
 	telegramInputChannel <- "test"
-	if action.Pin != "Water" {
-		t.Errorf("Pin name should be \"Water\", instead it is \"%s\"", action.Pin)
-	} else if action.State != true {
-		t.Errorf("Action's state should be true")
-	}
+	assert.Equal(t, action.Pin, "Water", "Pin name should be \"Water\", instead it is \"%s\"", action.Pin)
+	assert.Equal(t, action.State, true, "Action's state should be true")
 }
 
 func TestTurnPinOff(t *testing.T) {
@@ -114,21 +93,15 @@ func TestTurnPinOff(t *testing.T) {
 	}()
 	action := <-telegramOutputChannel
 	telegramInputChannel <- "test"
-	if action.Pin != "Light" {
-		t.Errorf("Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
-	} else if action.State != false {
-		t.Errorf("Action's state should be true")
-	}
+	assert.Equal(t, action.Pin, "Light", "Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
+	assert.Equal(t, action.State, false, "Action's state should be true")
 	go func() {
 		turnPinOff("WaterOff", config, 0, 0, telegramOutputChannel, telegramInputChannel)
 	}()
 	action = <-telegramOutputChannel
 	telegramInputChannel <- "test"
-	if action.Pin != "Water" {
-		t.Errorf("Pin name should be \"Water\", instead it is \"%s\"", action.Pin)
-	} else if action.State != false {
-		t.Errorf("Action's state should be true")
-	}
+	assert.Equal(t, action.Pin, "Water", "Pin name should be \"Water\", instead it is \"%s\"", action.Pin)
+	assert.Equal(t, action.State, false, "Action's state should be true")
 }
 
 func TestTurnPinOnAndOff(t *testing.T) {
@@ -138,28 +111,18 @@ func TestTurnPinOnAndOff(t *testing.T) {
 	telegramOutputChannel := make(chan configuration_loader.Action)
 	telegramInputChannel := make(chan string)
 	msg := turnPinOnAndOff("LightOnAndOff", config, 0, 0, telegramOutputChannel, telegramInputChannel)
-	if msg.Text != "OnAndOff messages should contain at least two words (action and time)" {
-		t.Errorf("Wrong message should return an error")
-	}
+	assert.Equal(t, msg.Text, "OnAndOff messages should contain at least two words (action and time)", "Wrong message should return an error")
 	msg = turnPinOnAndOff("LightOnAndOff 40w", config, 0, 0, telegramOutputChannel, telegramInputChannel)
-	if msg.Text != "Time not set properly" {
-		t.Errorf("Wrong time format should return an error")
-	}
+	assert.Equal(t, msg.Text, "Time not set properly", "Wrong time format should return an error")
 	go func() {
 		turnPinOnAndOff("LightOnAndOff 1s", config, 0, 0, telegramOutputChannel, telegramInputChannel)
 	}()
 	action := <-telegramOutputChannel
 	telegramInputChannel <- "test"
-	if action.Pin != "Light" {
-		t.Errorf("Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
-	} else if action.State != true {
-		t.Errorf("Action's state should be false")
-	}
+	assert.Equal(t, action.Pin, "Light", "Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
+	assert.Equal(t, action.State, true, "Action's state should be false")
 	action = <-telegramOutputChannel
 	telegramInputChannel <- "test"
-	if action.Pin != "Light" {
-		t.Errorf("Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
-	} else if action.State != false {
-		t.Errorf("Action's state should be true")
-	}
+	assert.Equal(t, action.Pin, "Light", "Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
+	assert.Equal(t, action.State, false, "Action's state should be true")
 }
