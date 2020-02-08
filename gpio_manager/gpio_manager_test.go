@@ -84,9 +84,14 @@ func TestGetPinsAvailable(t *testing.T) {
 		t.Errorf("Error, the lenght of pins active should be 2, instead it is %d", len(pinsActive))
 	}
 	if pinsActive[0] != "test" {
-		t.Errorf("Error, the pin should be \"test\" and it is \"%s\"", pinsActive[0])
-	}
-	if pinsActive[1] != "test2" {
-		t.Errorf("Error, the pin should be \"test2\" and it is \"%s\"", pinsActive[1])
+		if pinsActive[0] != "test2" {
+			t.Errorf("Error, the pin should be \"test\" or \"test2\" and it is \"%s\"", pinsActive[1])
+		} else if pinsActive[1] != "test" {
+			t.Errorf("Error, the pin should be \"test\" and it is \"%s\"", pinsActive[1])
+		}
+	} else {
+		if pinsActive[1] != "test2" {
+			t.Errorf("Error, the pin should be \"test2\" and it is \"%s\"", pinsActive[1])
+		}
 	}
 }
