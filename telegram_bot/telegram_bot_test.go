@@ -45,24 +45,28 @@ func TestGetMessagesAvailableMarkup(t *testing.T) {
 	messages := []string{"Light", "Water"}
 	msg := createMarkupForMessages(messages, 0, 0)
 	if markup, ok := msg.ReplyMarkup.(tgbotapi.ReplyKeyboardMarkup); ok {
-		if len(markup.Keyboard) != 2 {
-			t.Errorf("The message should contain two rows (light and water)")
-		} else if len(markup.Keyboard[0]) != 3 {
-			t.Errorf("The message should contain three columns (on, off, onAndOff)")
-		} else if markup.Keyboard[0][0].Text != "LightOn" {
-			t.Errorf("Button should contain \"LightOn\" and it is \"%s\"", markup.Keyboard[0][0].Text)
-		} else if markup.Keyboard[0][1].Text != "LightOff" {
-			t.Errorf("Button should contain \"LightOff\" and it is \"%s\"", markup.Keyboard[0][1].Text)
-		} else if markup.Keyboard[0][2].Text != "LightOnAndOff 2s" {
-			t.Errorf("Button should contain \"LightOnAndOff 2s\" and it is \"%s\"", markup.Keyboard[0][2].Text)
+		if len(markup.Keyboard) != 3 {
+			t.Errorf("The message should contain three rows (/start, light and water)")
+		} else if len(markup.Keyboard[0]) != 1 {
+			t.Errorf("The message should contain one column (/start)")
+		} else if markup.Keyboard[0][0].Text != "/start" {
+			t.Errorf("Button should contain \"/start\" and it is \"%s\"", markup.Keyboard[0][0].Text)
 		} else if len(markup.Keyboard[1]) != 3 {
 			t.Errorf("The message should contain three columns (on, off, onAndOff)")
-		} else if markup.Keyboard[1][0].Text != "WaterOn" {
-			t.Errorf("Button should contain \"WaterOn\" and it is \"%s\"", markup.Keyboard[1][0].Text)
-		} else if markup.Keyboard[1][1].Text != "WaterOff" {
-			t.Errorf("Button should contain \"WaterOff\" and it is \"%s\"", markup.Keyboard[1][1].Text)
-		} else if markup.Keyboard[1][2].Text != "WaterOnAndOff 2s" {
-			t.Errorf("Button should contain \"WaterOnAndOff 2s\" and it is \"%s\"", markup.Keyboard[1][2].Text)
+		} else if markup.Keyboard[1][0].Text != "LightOn" {
+			t.Errorf("Button should contain \"LightOn\" and it is \"%s\"", markup.Keyboard[1][0].Text)
+		} else if markup.Keyboard[1][1].Text != "LightOff" {
+			t.Errorf("Button should contain \"LightOff\" and it is \"%s\"", markup.Keyboard[1][1].Text)
+		} else if markup.Keyboard[1][2].Text != "LightOnAndOff 2s" {
+			t.Errorf("Button should contain \"LightOnAndOff 2s\" and it is \"%s\"", markup.Keyboard[1][2].Text)
+		} else if len(markup.Keyboard[2]) != 3 {
+			t.Errorf("The message should contain three columns (on, off, onAndOff)")
+		} else if markup.Keyboard[2][0].Text != "WaterOn" {
+			t.Errorf("Button should contain \"WaterOn\" and it is \"%s\"", markup.Keyboard[2][0].Text)
+		} else if markup.Keyboard[2][1].Text != "WaterOff" {
+			t.Errorf("Button should contain \"WaterOff\" and it is \"%s\"", markup.Keyboard[2][1].Text)
+		} else if markup.Keyboard[2][2].Text != "WaterOnAndOff 2s" {
+			t.Errorf("Button should contain \"WaterOnAndOff 2s\" and it is \"%s\"", markup.Keyboard[2][2].Text)
 		}
 	} else {
 		t.Errorf("Error getting the message's reply markup")
