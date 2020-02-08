@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
@@ -32,7 +33,7 @@ func SetupAndRun(config configuration_loader.InitialConfiguration, inputChannel 
 	for _, pin := range config.PinsActive {
 		pinsRegistered = append(pinsRegistered, pin.Name)
 	}
-	rpiServer := rpiHomeServer{nil, make(map[net.Addr]dateStringsPair), make(map[net.Addr]chan configuration_loader.Action)}
+	rpiServer := rpiHomeServer{clientsRegistered: make(map[net.Addr]dateStringsPair), actionsToPerform: make(map[net.Addr]chan configuration_loader.Action)}
 	messages_protocol.RegisterRPIHomeServerServiceServer(server, &rpiServer)
 	go run(server, &rpiServer, &lis, exitChannel, inputChannel, responsesChannel)
 	return nil
@@ -75,6 +76,7 @@ type rpiHomeServer struct {
 	messages_protocol.RPIHomeServerServiceServer
 	clientsRegistered map[net.Addr]dateStringsPair
 	actionsToPerform  map[net.Addr]chan configuration_loader.Action
+	mutex             sync.Mutex
 }
 
 type dateStringsPair struct {
@@ -83,15 +85,21 @@ type dateStringsPair struct {
 }
 
 func (s *rpiHomeServer) getPinsAndUpdateMap() string {
+	s.mutex.Lock()
 	response := ""
+	var clientsToRemove []net.Addr
 	for key, pins := range s.clientsRegistered {
 		if time.Now().Sub(pins.LastTimeConnected) > time.Second*6 {
-			s.removeClient(key)
+			clientsToRemove = append(clientsToRemove, key)
 		} else {
 			for _, pin := range pins.Pins {
 				response += pin + " "
 			}
 		}
+	}
+	s.mutex.Unlock()
+	for _, client := range clientsToRemove {
+		s.removeClient(client)
 	}
 	return response
 }
@@ -99,6 +107,8 @@ func (s *rpiHomeServer) getPinsAndUpdateMap() string {
 func (s *rpiHomeServer) RegisterToServer(ctx context.Context, message *messages_protocol.RegistrationMessage) (*messages_protocol.RegistrationResult, error) {
 	result := new(messages_protocol.RegistrationResult)
 	pinsRepeated := []string{}
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	for _, messagePin := range message.PinsToHandle {
 		for _, clientPins := range s.clientsRegistered {
 			for _, configPin := range clientPins.Pins {
@@ -135,6 +145,8 @@ func (s *rpiHomeServer) UnregisterToServer(ctx context.Context, empty *messages_
 }
 
 func (s *rpiHomeServer) removeClient(client net.Addr) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	delete(s.clientsRegistered, client)
 	delete(s.actionsToPerform, client)
 }
@@ -154,6 +166,8 @@ func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_pro
 	case <-time.After(timeWaitingForNewActions):
 		break
 	}
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	previousClientData := s.clientsRegistered[p.Addr]
 	s.clientsRegistered[p.Addr] = dateStringsPair{time.Now(), previousClientData.Pins}
 	return &actions, nil
