@@ -248,3 +248,47 @@ func TestLoadClientConfigurationFromStringWithComplexPinName(t *testing.T) {
 	_, err := loadConfigurationFromFileContent(content)
 	assert.NotNil(t, err, "loadConfigurationFromFileContent() with complex pin names should return an error")
 }
+
+func TestLoadClientConfigurationFromStringWithNotValidNames(t *testing.T) {
+	content := []byte(`
+	{
+		"GRPCServerIp": "192.168.2.160:8000",
+		"PinsActive": [
+			{
+				"name": "lightOn",
+				"pin": 	18
+			}
+		]
+	}`)
+
+	_, err := loadConfigurationFromFileContent(content)
+	assert.NotNil(t, err, "loadConfigurationFromFileContent() with pin name ending with \"On\" should return an error")
+
+	content = []byte(`
+	{
+		"GRPCServerIp": "192.168.2.160:8000",
+		"PinsActive": [
+			{
+				"name": "lightOff",
+				"pin": 	18
+			}
+		]
+	}`)
+
+	_, err = loadConfigurationFromFileContent(content)
+	assert.NotNil(t, err, "loadConfigurationFromFileContent() with pin name ending with \"Off\" should return an error")
+
+	content = []byte(`
+	{
+		"GRPCServerIp": "192.168.2.160:8000",
+		"PinsActive": [
+			{
+				"name": "lightOnAndOff",
+				"pin": 	18
+			}
+		]
+	}`)
+
+	_, err = loadConfigurationFromFileContent(content)
+	assert.NotNil(t, err, "loadConfigurationFromFileContent() with pin name ending with \"OnAndOff\" should return an error")
+}

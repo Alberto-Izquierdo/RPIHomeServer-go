@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -64,6 +65,8 @@ func loadConfigurationFromFileContent(fileContent []byte) (result InitialConfigu
 		for _, pin := range result.PinsActive {
 			if len(strings.Fields(pin.Name)) > 1 {
 				err = errors.New("Pin names should only have one word. Wrong pin: \"" + pin.Name + "\"")
+			} else if matched, _ := regexp.Match("(On$)|(Off$)|(OnAndOff$)", []byte(pin.Name)); err == nil && matched {
+				err = errors.New("Pin name should not end with \"On\", \"Off\" or \"OnAndOff\". Wrong pin: \"" + pin.Name + "\"")
 			}
 		}
 		if result.ServerConfiguration != nil {
