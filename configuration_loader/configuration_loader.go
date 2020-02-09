@@ -61,6 +61,11 @@ func loadConfigurationFromFileContent(fileContent []byte) (result InitialConfigu
 		if result.ServerConfiguration == nil && len(result.PinsActive) == 0 {
 			err = errors.New("PinsActive array is empty")
 		}
+		for _, pin := range result.PinsActive {
+			if len(strings.Fields(pin.Name)) > 1 {
+				err = errors.New("Pin names should only have one word. Wrong pin: \"" + pin.Name + "\"")
+			}
+		}
 		if result.ServerConfiguration != nil {
 			if result.ServerConfiguration.TelegramBotToken == "" {
 				err = errors.New("Telegram bot token not defined")
