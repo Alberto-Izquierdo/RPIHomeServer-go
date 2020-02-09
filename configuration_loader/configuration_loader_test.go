@@ -232,3 +232,19 @@ func TestLoadClientConfigurationFromStringWithCorrectGRPCData(t *testing.T) {
 	assert.Equal(t, config.PinsActive[0].Pin, 18, "The value of the pin should be 18, instead it is %d", config.PinsActive[0].Pin)
 	assert.NotEqual(t, config.ServerConfiguration, nil, "The telegram bot configuration should be nil")
 }
+
+func TestLoadClientConfigurationFromStringWithComplexPinName(t *testing.T) {
+	content := []byte(`
+	{
+		"GRPCServerIp": "192.168.2.160:8000",
+		"PinsActive": [
+			{
+				"name": "bedroom light",
+				"pin": 	18
+			}
+		]
+	}`)
+
+	_, err := loadConfigurationFromFileContent(content)
+	assert.NotNil(t, err, "loadConfigurationFromFileContent() with complex pin names should return an error")
+}
