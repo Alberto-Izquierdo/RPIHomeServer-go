@@ -1,15 +1,13 @@
 language: go
+dist: bionic
 go:
     - 1.13.1
 env:
   matrix:
     - TARGET=desktop
     - TARGET=rpi
-addons:
-  apt:
-    packages:
-      - protobuf-compiler
 before_install:
+  - sudo snap install protobuf --classic
   - go get -u github.com/golang/protobuf/protoc-gen-go
   - go mod download
   - mkdir messages
