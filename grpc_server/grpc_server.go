@@ -12,6 +12,7 @@ import (
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/message_generator"
 	messages_protocol "github.com/Alberto-Izquierdo/RPIHomeServer-go/messages"
+	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 )
@@ -170,6 +171,10 @@ func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_pro
 		protoAction := messages_protocol.PinStatePair{Pin: action.Pin, State: action.State}
 		actions.Actions = []*messages_protocol.PinStatePair{&protoAction}
 	case action := <-s.programmedActions[p.Addr]:
+		time, err := ptypes.TimestampProto(time.Time(action.ProgrammedAction.Action.Time))
+		if err != nil {
+			return nil, err
+		}
 		programmedAction := messages_protocol.ProgrammedActionOperation{
 			Operation: action.Operation,
 			Repeat:    action.ProgrammedAction.Repeat,
@@ -177,7 +182,7 @@ func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_pro
 				Pin:   action.ProgrammedAction.Action.Action.Pin,
 				State: action.ProgrammedAction.Action.Action.State,
 			},
-			/*TODO: add time*/
+			Time: time,
 		}
 		actions.ProgrammedActionOperations = []*messages_protocol.ProgrammedActionOperation{&programmedAction}
 	case <-time.After(timeWaitingForNewActions):
