@@ -9,6 +9,16 @@ import (
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
 )
 
+const (
+	CREATE = iota
+	REMOVE
+)
+
+type ProgrammedActionOperation struct {
+	ProgrammedAction ProgrammedAction
+	Operation        int32
+}
+
 type ProgrammedAction struct {
 	Action configuration_loader.ActionTime
 	Repeat bool

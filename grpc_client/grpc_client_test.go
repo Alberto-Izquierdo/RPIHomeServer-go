@@ -79,7 +79,7 @@ func TestCheckForActions(t *testing.T) {
 	client, _, _ := connectToGrpcServer(clientConfig)
 	registerPinsToGRPCServer(client, clientConfig)
 	clientOutputChannel := make(chan configuration_loader.Action)
-	go checkForActions(client, clientOutputChannel)
+	go checkForActions(client, clientOutputChannel, nil)
 	serverInputChannel <- configuration_loader.Action{"pin2", true}
 	<-serverOutputChannel
 	action := <-clientOutputChannel
@@ -97,10 +97,10 @@ func TestRun(t *testing.T) {
 	clientExitChannel := make(chan bool)
 	clientOutputChannel := make(chan configuration_loader.Action)
 	clientConfig := configuration_loader.InitialConfiguration{GRPCServerIp: "localhost:8080"}
-	err := Run(clientConfig, clientExitChannel, clientOutputChannel, nil)
+	err := Run(clientConfig, clientExitChannel, clientOutputChannel, nil, nil)
 	assert.NotEqual(t, err, nil, "Config without pins should return an error")
 	clientConfig.PinsActive = append(clientConfig.PinsActive, gpio_manager.PairNamePin{"pin1", 90})
-	err = Run(clientConfig, clientExitChannel, clientOutputChannel, nil)
+	err = Run(clientConfig, clientExitChannel, clientOutputChannel, nil, nil)
 	assert.Equal(t, err, nil, "Correct config should not return an error")
 	time.Sleep(1 * time.Second)
 	clientExitChannel <- true
