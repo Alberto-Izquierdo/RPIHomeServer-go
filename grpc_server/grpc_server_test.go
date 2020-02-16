@@ -8,6 +8,7 @@ import (
 
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/gpio_manager"
+	"github.com/Alberto-Izquierdo/RPIHomeServer-go/message_generator"
 	messages_protocol "github.com/Alberto-Izquierdo/RPIHomeServer-go/messages"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/peer"
@@ -36,7 +37,11 @@ func TestRegisterToServer(t *testing.T) {
 	conn := net.TCPConn{}
 	p := peer.Peer{conn.LocalAddr(), nil}
 	ctx := peer.NewContext(context.TODO(), &p)
-	server := rpiHomeServer{clientsRegistered: make(map[net.Addr]dateStringsPair), actionsToPerform: make(map[net.Addr]chan configuration_loader.Action)}
+	server := rpiHomeServer{
+		clientsRegistered: make(map[net.Addr]dateStringsPair),
+		actionsToPerform:  make(map[net.Addr]chan configuration_loader.Action),
+		programmedActions: make(map[net.Addr]chan message_generator.ProgrammedActionOperation),
+	}
 	message0 := messages_protocol.RegistrationMessage{}
 	message0.PinsToHandle = []string{"pin1"}
 	result, _ := server.RegisterToServer(ctx, &message0)
