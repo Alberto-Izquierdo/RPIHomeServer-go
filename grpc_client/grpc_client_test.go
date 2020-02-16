@@ -29,7 +29,7 @@ func createServer(t *testing.T) (chan bool, chan configuration_loader.Action, ch
 	serverExitChannel := make(chan bool)
 	outputChannel := make(chan configuration_loader.Action)
 	responsesChannel := make(chan string)
-	err := grpc_server.SetupAndRun(serverConfig, outputChannel, responsesChannel, serverExitChannel)
+	err := grpc_server.SetupAndRun(serverConfig, outputChannel, responsesChannel, nil, serverExitChannel)
 	assert.Nil(t, err)
 	return serverExitChannel, outputChannel, responsesChannel
 }
