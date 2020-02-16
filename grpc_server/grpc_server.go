@@ -55,29 +55,43 @@ func run(server *grpc.Server, rpiServer *rpiHomeServer, listener *net.Listener, 
 			exitChannel <- true
 			return
 		case action := <-inputChannel:
-			response := ""
 			if action.Pin == "start" {
-				response = rpiServer.getPinsAndUpdateMap()
+				responsesChannel <- rpiServer.getPinsAndUpdateMap()
 			} else {
-				response = "Action does not exist"
 				rpiServer.mutex.Lock()
-				for client, pins := range rpiServer.clientsRegistered {
-					for _, pin := range pins.Pins {
-						if pin == action.Pin {
-							rpiServer.actionsToPerform[client] <- action
-							response = "Action received!"
-							continue
-						}
-					}
+				client, err := getClientAssociatedWithPin(action.Pin, rpiServer)
+				if err != nil {
+					responsesChannel <- err.Error()
+				} else {
+					rpiServer.actionsToPerform[client] <- action
+					responsesChannel <- "Action received!"
 				}
 				rpiServer.mutex.Unlock()
-				if response == "" {
-					response = "Action does not exist"
-				}
 			}
-			responsesChannel <- response
+		case action := <-programmedActionsChannel:
+			rpiServer.mutex.Lock()
+			client, err := getClientAssociatedWithPin(action.ProgrammedAction.Action.Action.Pin, rpiServer)
+			if err != nil {
+				responsesChannel <- err.Error()
+			} else {
+				rpiServer.programmedActions[client] <- action
+				responsesChannel <- "Action received!"
+			}
+			rpiServer.mutex.Unlock()
+
 		}
 	}
+}
+
+func getClientAssociatedWithPin(pinName string, rpiServer *rpiHomeServer) (net.Addr, error) {
+	for client, pins := range rpiServer.clientsRegistered {
+		for _, pin := range pins.Pins {
+			if pin == pinName {
+				return client, nil
+			}
+		}
+	}
+	return nil, errors.New("Pin does not exist: " + pinName)
 }
 
 type rpiHomeServer struct {
@@ -119,12 +133,9 @@ func (s *rpiHomeServer) RegisterToServer(ctx context.Context, message *messages_
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	for _, messagePin := range message.PinsToHandle {
-		for _, clientPins := range s.clientsRegistered {
-			for _, configPin := range clientPins.Pins {
-				if messagePin == configPin {
-					pinsRepeated = append(pinsRepeated, messagePin)
-				}
-			}
+		_, err := getClientAssociatedWithPin(messagePin, s)
+		if err == nil {
+			pinsRepeated = append(pinsRepeated, messagePin)
 		}
 	}
 	if len(pinsRepeated) == 0 {
@@ -134,6 +145,7 @@ func (s *rpiHomeServer) RegisterToServer(ctx context.Context, message *messages_
 		}
 		s.clientsRegistered[p.Addr] = dateStringsPair{time.Now(), message.PinsToHandle}
 		s.actionsToPerform[p.Addr] = make(chan configuration_loader.Action)
+		s.programmedActions[p.Addr] = make(chan message_generator.ProgrammedActionOperation)
 		code := messages_protocol.RegistrationStatusCodes_Ok
 		result.Result = code
 	} else {
