@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
+	"github.com/Alberto-Izquierdo/RPIHomeServer-go/message_generator"
 	messages_protocol "github.com/Alberto-Izquierdo/RPIHomeServer-go/messages"
+	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc"
 )
 
@@ -16,7 +18,11 @@ const numberOfReconnectingAttemptsUntilShutdown int = 30
 
 const EmptyPinsMessage string = "There are not any pins active, gRPC client will not be run"
 
-func Run(config configuration_loader.InitialConfiguration, exitChannel chan bool, outputChannel chan configuration_loader.Action, mainExitChannel chan bool) error {
+func Run(config configuration_loader.InitialConfiguration,
+	exitChannel chan bool, outputChannel chan configuration_loader.Action,
+	programmedActionsChannel chan message_generator.ProgrammedActionOperation,
+	mainExitChannel chan bool) error {
+
 	if len(config.PinsActive) == 0 {
 		return errors.New(EmptyPinsMessage)
 	}
@@ -40,7 +46,7 @@ func Run(config configuration_loader.InitialConfiguration, exitChannel chan bool
 				exitChannel <- true
 				return
 			default:
-				err = checkForActions(client, outputChannel)
+				err = checkForActions(client, outputChannel, programmedActionsChannel)
 				if err != nil {
 					fmt.Println("There was an error checking actions in gRPC client: ", err.Error())
 					fmt.Println("Trying to reconnect to server...")
@@ -95,9 +101,9 @@ func registerPinsToGRPCServer(client messages_protocol.RPIHomeServerServiceClien
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	result, err := client.RegisterToServer(ctx, &messages_protocol.RegistrationMessage{PinsToHandle: pins})
-	if err == nil && *result.Result != messages_protocol.RegistrationStatusCodes_Ok {
+	if err == nil && result.Result != messages_protocol.RegistrationStatusCodes_Ok {
 		errorMessage := result.Result.String()
-		if *result.Result == messages_protocol.RegistrationStatusCodes_PinNameAlreadyRegistered {
+		if result.Result == messages_protocol.RegistrationStatusCodes_PinNameAlreadyRegistered {
 			errorMessage += "Pins repeated:"
 			for _, v := range result.PinsRepeated {
 				errorMessage += " " + v
@@ -108,7 +114,10 @@ func registerPinsToGRPCServer(client messages_protocol.RPIHomeServerServiceClien
 	return err
 }
 
-func checkForActions(client messages_protocol.RPIHomeServerServiceClient, outputChannel chan configuration_loader.Action) error {
+func checkForActions(client messages_protocol.RPIHomeServerServiceClient,
+	outputChannel chan configuration_loader.Action,
+	programmedActionsChannel chan message_generator.ProgrammedActionOperation) error {
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	actions, err := client.CheckForActions(ctx, &messages_protocol.Empty{})
@@ -116,7 +125,30 @@ func checkForActions(client messages_protocol.RPIHomeServerServiceClient, output
 		return err
 	}
 	for _, action := range actions.Actions {
-		outputChannel <- configuration_loader.Action{*action.Pin, *action.State}
+		outputChannel <- configuration_loader.Action{action.Pin, action.State}
+	}
+	for _, programmedAction := range actions.ProgrammedActionOperations {
+		timestamp, err := ptypes.Timestamp(programmedAction.Time)
+		if err != nil {
+			continue
+		}
+		for timestamp.Before(time.Now()) {
+			timestamp = timestamp.Add(time.Hour * 24)
+		}
+		action := message_generator.ProgrammedActionOperation{
+			Operation: programmedAction.Operation,
+			ProgrammedAction: message_generator.ProgrammedAction{
+				Action: configuration_loader.ActionTime{
+					Action: configuration_loader.Action{
+						programmedAction.Action.Pin,
+						programmedAction.Action.State,
+					},
+					Time: configuration_loader.MyTime(timestamp),
+				},
+				Repeat: programmedAction.Repeat,
+			},
+		}
+		programmedActionsChannel <- action
 	}
 	return nil
 }

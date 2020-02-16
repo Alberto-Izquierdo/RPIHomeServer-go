@@ -48,7 +48,7 @@ func main() {
 			return
 		}
 		exitChannels = append(exitChannels, make(chan bool))
-		err = grpc_server.SetupAndRun(config, tgGrpcActionsChannel, tgGrpcResponsesChannel, exitChannels[len(exitChannels)-1])
+		err = grpc_server.SetupAndRun(config, tgGrpcActionsChannel, tgGrpcResponsesChannel, nil, exitChannels[len(exitChannels)-1])
 		if err != nil {
 			fmt.Println("Error while setting up gRPC server: " + err.Error())
 			return
@@ -58,7 +58,7 @@ func main() {
 	// gRPC client
 	gRPCClientActionsChannel := make(chan configuration_loader.Action)
 	exitChannels = append(exitChannels, make(chan bool))
-	err = grpc_client.Run(config, exitChannels[len(exitChannels)-1], gRPCClientActionsChannel, mainExitChannel)
+	err = grpc_client.Run(config, exitChannels[len(exitChannels)-1], gRPCClientActionsChannel, nil, mainExitChannel)
 	if err != nil {
 		exitChannels = exitChannels[:len(exitChannels)-1]
 		if err.Error() == grpc_client.EmptyPinsMessage || config.ServerConfiguration != nil {

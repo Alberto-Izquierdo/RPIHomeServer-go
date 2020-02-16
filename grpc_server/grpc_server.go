@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
+	"github.com/Alberto-Izquierdo/RPIHomeServer-go/message_generator"
 	messages_protocol "github.com/Alberto-Izquierdo/RPIHomeServer-go/messages"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
@@ -17,7 +18,7 @@ import (
 
 const timeWaitingForNewActions time.Duration = 2 * time.Second
 
-func SetupAndRun(config configuration_loader.InitialConfiguration, inputChannel chan configuration_loader.Action, responsesChannel chan string, exitChannel chan bool) error {
+func SetupAndRun(config configuration_loader.InitialConfiguration, inputChannel chan configuration_loader.Action, responsesChannel chan string, programmedActionsChannel chan message_generator.ProgrammedActionOperation, exitChannel chan bool) error {
 	if config.ServerConfiguration == nil {
 		return errors.New("Server parameters not set in the configuration file")
 	}
@@ -33,13 +34,17 @@ func SetupAndRun(config configuration_loader.InitialConfiguration, inputChannel 
 	for _, pin := range config.PinsActive {
 		pinsRegistered = append(pinsRegistered, pin.Name)
 	}
-	rpiServer := rpiHomeServer{clientsRegistered: make(map[net.Addr]dateStringsPair), actionsToPerform: make(map[net.Addr]chan configuration_loader.Action)}
+	rpiServer := rpiHomeServer{
+		clientsRegistered: make(map[net.Addr]dateStringsPair),
+		actionsToPerform:  make(map[net.Addr]chan configuration_loader.Action),
+		programmedActions: make(map[net.Addr]chan message_generator.ProgrammedActionOperation),
+	}
 	messages_protocol.RegisterRPIHomeServerServiceServer(server, &rpiServer)
-	go run(server, &rpiServer, &lis, exitChannel, inputChannel, responsesChannel)
+	go run(server, &rpiServer, &lis, exitChannel, inputChannel, responsesChannel, programmedActionsChannel)
 	return nil
 }
 
-func run(server *grpc.Server, rpiServer *rpiHomeServer, listener *net.Listener, exitChannel chan bool, inputChannel chan configuration_loader.Action, responsesChannel chan string) {
+func run(server *grpc.Server, rpiServer *rpiHomeServer, listener *net.Listener, exitChannel chan bool, inputChannel chan configuration_loader.Action, responsesChannel chan string, programmedActionsChannel chan message_generator.ProgrammedActionOperation) {
 	go server.Serve(*listener)
 	for {
 		select {
@@ -78,6 +83,7 @@ type rpiHomeServer struct {
 	messages_protocol.RPIHomeServerServiceServer
 	clientsRegistered map[net.Addr]dateStringsPair
 	actionsToPerform  map[net.Addr]chan configuration_loader.Action
+	programmedActions map[net.Addr]chan message_generator.ProgrammedActionOperation
 	mutex             sync.Mutex
 }
 
@@ -128,10 +134,10 @@ func (s *rpiHomeServer) RegisterToServer(ctx context.Context, message *messages_
 		s.clientsRegistered[p.Addr] = dateStringsPair{time.Now(), message.PinsToHandle}
 		s.actionsToPerform[p.Addr] = make(chan configuration_loader.Action)
 		code := messages_protocol.RegistrationStatusCodes_Ok
-		result.Result = &code
+		result.Result = code
 	} else {
 		code := messages_protocol.RegistrationStatusCodes_PinNameAlreadyRegistered
-		result.Result = &code
+		result.Result = code
 		result.PinsRepeated = pinsRepeated
 	}
 	return result, nil
@@ -161,10 +167,19 @@ func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_pro
 	actions := messages_protocol.ActionsToPerform{}
 	select {
 	case action := <-s.actionsToPerform[p.Addr]:
-		protoAction := messages_protocol.PinStatePair{}
-		protoAction.Pin = &action.Pin
-		protoAction.State = &action.State
+		protoAction := messages_protocol.PinStatePair{Pin: action.Pin, State: action.State}
 		actions.Actions = []*messages_protocol.PinStatePair{&protoAction}
+	case action := <-s.programmedActions[p.Addr]:
+		programmedAction := messages_protocol.ProgrammedActionOperation{
+			Operation: action.Operation,
+			Repeat:    action.ProgrammedAction.Repeat,
+			Action: &messages_protocol.PinStatePair{
+				Pin:   action.ProgrammedAction.Action.Action.Pin,
+				State: action.ProgrammedAction.Action.Action.State,
+			},
+			/*TODO: add time*/
+		}
+		actions.ProgrammedActionOperations = []*messages_protocol.ProgrammedActionOperation{&programmedAction}
 	case <-time.After(timeWaitingForNewActions):
 		break
 	}
