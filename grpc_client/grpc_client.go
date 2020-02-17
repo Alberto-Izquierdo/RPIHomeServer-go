@@ -128,7 +128,7 @@ func checkForActions(client messages_protocol.RPIHomeServerServiceClient,
 		outputChannel <- configuration_loader.Action{action.Pin, action.State}
 	}
 	for _, programmedAction := range actions.ProgrammedActionOperations {
-		timestamp, err := ptypes.Timestamp(programmedAction.Time)
+		timestamp, err := ptypes.Timestamp(programmedAction.ProgrammedAction.Time)
 		if err != nil {
 			continue
 		}
@@ -140,8 +140,8 @@ func checkForActions(client messages_protocol.RPIHomeServerServiceClient,
 			ProgrammedAction: message_generator.ProgrammedAction{
 				Action: configuration_loader.ActionTime{
 					Action: configuration_loader.Action{
-						programmedAction.Action.Pin,
-						programmedAction.Action.State,
+						programmedAction.ProgrammedAction.Action.Pin,
+						programmedAction.ProgrammedAction.Action.State,
 					},
 					Time: configuration_loader.MyTime(timestamp),
 				},
