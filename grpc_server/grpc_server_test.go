@@ -38,7 +38,7 @@ func TestRegisterToServer(t *testing.T) {
 	p := peer.Peer{conn.LocalAddr(), nil}
 	ctx := peer.NewContext(context.TODO(), &p)
 	server := rpiHomeServer{
-		clientsRegistered: make(map[net.Addr]dateStringsPair),
+		clientsRegistered: make(map[net.Addr]clientRegisteredData),
 		actionsToPerform:  make(map[net.Addr]chan configuration_loader.Action),
 		programmedActions: make(map[net.Addr]chan message_generator.ProgrammedActionOperation),
 	}
@@ -65,19 +65,20 @@ func TestUnregisterToServer(t *testing.T) {
 	conn := net.TCPConn{}
 	p := peer.Peer{conn.LocalAddr(), nil}
 	ctx := peer.NewContext(context.TODO(), &p)
-	server := rpiHomeServer{clientsRegistered: map[net.Addr]dateStringsPair{conn.LocalAddr(): dateStringsPair{time.Now(), []string{"pin1"}}}}
+	server := rpiHomeServer{clientsRegistered: map[net.Addr]clientRegisteredData{conn.LocalAddr(): clientRegisteredData{LastTimeConnected: time.Now(), Pins: []string{"pin1"}}}}
 	assert.Equal(t, len(server.clientsRegistered), 1, "The server should contain an element initially, instead it contains %d", len(server.clientsRegistered))
 	server.actionsToPerform = map[net.Addr]chan configuration_loader.Action{conn.LocalAddr(): make(chan configuration_loader.Action)}
 	server.UnregisterToServer(ctx, &messages_protocol.Empty{})
 	assert.Equal(t, len(server.clientsRegistered), 0, "After a successfull unregistering, the clients registered should contain zero elements, instead it contains %d", len(server.clientsRegistered))
 	assert.Equal(t, len(server.actionsToPerform), 0, "After a successfull unregistering, the actions to perform from that client should contain zero elements, instead it contains %d", len(server.actionsToPerform))
+	assert.Equal(t, len(server.programmedActions), 0, "After a successfull unregistering, the programmed actions in the client should contain zero elements, instead it contains %d", len(server.actionsToPerform))
 }
 
 func TestCheckForActions(t *testing.T) {
 	conn := net.TCPConn{}
 	p := peer.Peer{conn.LocalAddr(), nil}
 	ctx := peer.NewContext(context.TODO(), &p)
-	server := rpiHomeServer{clientsRegistered: make(map[net.Addr]dateStringsPair), actionsToPerform: make(map[net.Addr]chan configuration_loader.Action)}
+	server := rpiHomeServer{clientsRegistered: make(map[net.Addr]clientRegisteredData), actionsToPerform: make(map[net.Addr]chan configuration_loader.Action)}
 	server.actionsToPerform[conn.LocalAddr()] = make(chan configuration_loader.Action)
 	go func() {
 		server.actionsToPerform[conn.LocalAddr()] <- configuration_loader.Action{"pin1", false}
@@ -85,6 +86,7 @@ func TestCheckForActions(t *testing.T) {
 	actions, err := server.CheckForActions(ctx, &messages_protocol.Empty{})
 	assert.Equal(t, err, nil, "Check for actions should not return an error")
 	assert.Equal(t, len(actions.Actions), 1, "Check for actions should return 1 action")
+	assert.Equal(t, len(actions.ProgrammedActionOperations), 0, "Check for actions should return 0 programmed actions")
 	assert.Equal(t, actions.Actions[0].Pin, "pin1", "Element 0 from check for actions should be \"pin1\", instead it is %s", actions.Actions[0].Pin)
 	assert.Equal(t, actions.Actions[0].State, false, "Element 0 state from check for actions should be false")
 	assert.Equal(t, len(server.actionsToPerform[conn.LocalAddr()]), 0, "After receiving the actions to perform, they should be removed")
@@ -92,12 +94,43 @@ func TestCheckForActions(t *testing.T) {
 
 func TestClientDisconnection(t *testing.T) {
 	conn := net.TCPConn{}
-	server := rpiHomeServer{clientsRegistered: make(map[net.Addr]dateStringsPair), actionsToPerform: make(map[net.Addr]chan configuration_loader.Action)}
-	server.clientsRegistered[conn.LocalAddr()] = dateStringsPair{time.Now(), []string{"pin1"}}
+	server := rpiHomeServer{clientsRegistered: make(map[net.Addr]clientRegisteredData), actionsToPerform: make(map[net.Addr]chan configuration_loader.Action)}
+	server.clientsRegistered[conn.LocalAddr()] = clientRegisteredData{
+		LastTimeConnected: time.Now(),
+		Pins:              []string{"pin1"},
+	}
 	pins := server.getPinsAndUpdateMap()
 	assert.Equal(t, pins, "pin1 ", "When there is a client registered with a pin, it should be returned")
 	time.Sleep(time.Second * 8)
 	pins = server.getPinsAndUpdateMap()
 	assert.Equal(t, pins, "", "After the timeout has passed, the string returned should be empty")
+}
 
+func TestGetProgrammedActions(t *testing.T) {
+	conn := net.TCPConn{}
+	p := peer.Peer{conn.LocalAddr(), nil}
+	ctx := peer.NewContext(context.TODO(), &p)
+	server := rpiHomeServer{
+		clientsRegistered: make(map[net.Addr]clientRegisteredData),
+		actionsToPerform:  make(map[net.Addr]chan configuration_loader.Action),
+		programmedActions: make(map[net.Addr]chan message_generator.ProgrammedActionOperation),
+	}
+	server.actionsToPerform[conn.LocalAddr()] = make(chan configuration_loader.Action)
+	server.programmedActions[conn.LocalAddr()] = make(chan message_generator.ProgrammedActionOperation)
+	go func() {
+		server.programmedActions[conn.LocalAddr()] <- message_generator.ProgrammedActionOperation{
+			message_generator.ProgrammedAction{
+				configuration_loader.ActionTime{
+					configuration_loader.Action{"pin1", false},
+					configuration_loader.MyTime(time.Now())},
+				false,
+			},
+			message_generator.CREATE,
+		}
+	}()
+	actions, err := server.CheckForActions(ctx, &messages_protocol.Empty{})
+	assert.Equal(t, err, nil, "Check for actions should not return an error")
+	assert.Equal(t, len(actions.Actions), 0, "Check for actions should return 0 actions")
+	assert.Equal(t, len(actions.ProgrammedActionOperations), 1, "Check for actions should return 1 programmed action")
+	assert.Equal(t, len(server.programmedActions[conn.LocalAddr()]), 0, "After receiving the actions to perform, they should be removed")
 }

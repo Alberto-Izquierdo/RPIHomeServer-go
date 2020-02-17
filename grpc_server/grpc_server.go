@@ -36,7 +36,7 @@ func SetupAndRun(config configuration_loader.InitialConfiguration, inputChannel 
 		pinsRegistered = append(pinsRegistered, pin.Name)
 	}
 	rpiServer := rpiHomeServer{
-		clientsRegistered: make(map[net.Addr]dateStringsPair),
+		clientsRegistered: make(map[net.Addr]clientRegisteredData),
 		actionsToPerform:  make(map[net.Addr]chan configuration_loader.Action),
 		programmedActions: make(map[net.Addr]chan message_generator.ProgrammedActionOperation),
 	}
@@ -96,15 +96,16 @@ func getClientAssociatedWithPin(pinName string, rpiServer *rpiHomeServer) (net.A
 
 type rpiHomeServer struct {
 	messages_protocol.RPIHomeServerServiceServer
-	clientsRegistered map[net.Addr]dateStringsPair
+	clientsRegistered map[net.Addr]clientRegisteredData
 	actionsToPerform  map[net.Addr]chan configuration_loader.Action
 	programmedActions map[net.Addr]chan message_generator.ProgrammedActionOperation
 	mutex             sync.Mutex
 }
 
-type dateStringsPair struct {
+type clientRegisteredData struct {
 	LastTimeConnected time.Time
 	Pins              []string
+	ProgrammedActions []message_generator.ProgrammedAction
 }
 
 func (s *rpiHomeServer) getPinsAndUpdateMap() string {
@@ -143,7 +144,28 @@ func (s *rpiHomeServer) RegisterToServer(ctx context.Context, message *messages_
 		if !ok {
 			return nil, errors.New("Error while extracting the peer from context")
 		}
-		s.clientsRegistered[p.Addr] = dateStringsPair{time.Now(), message.PinsToHandle}
+		var programmedActions []message_generator.ProgrammedAction
+		for _, programmedAction := range message.ProgrammedActions {
+			timestamp, err := ptypes.Timestamp(programmedAction.Time)
+			if err != nil {
+				continue
+			}
+			programmedActions = append(programmedActions, message_generator.ProgrammedAction{
+				Action: configuration_loader.ActionTime{
+					Action: configuration_loader.Action{
+						Pin:   programmedAction.Action.Pin,
+						State: programmedAction.Action.State,
+					},
+					Time: configuration_loader.MyTime(timestamp),
+				},
+				Repeat: true,
+			})
+		}
+		s.clientsRegistered[p.Addr] = clientRegisteredData{
+			LastTimeConnected: time.Now(),
+			Pins:              message.PinsToHandle,
+			ProgrammedActions: programmedActions,
+		}
 		s.actionsToPerform[p.Addr] = make(chan configuration_loader.Action)
 		s.programmedActions[p.Addr] = make(chan message_generator.ProgrammedActionOperation)
 		code := messages_protocol.RegistrationStatusCodes_Ok
@@ -170,6 +192,7 @@ func (s *rpiHomeServer) removeClient(client net.Addr) {
 	defer s.mutex.Unlock()
 	delete(s.clientsRegistered, client)
 	delete(s.actionsToPerform, client)
+	delete(s.programmedActions, client)
 }
 
 func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_protocol.Empty) (*messages_protocol.ActionsToPerform, error) {
@@ -190,11 +213,13 @@ func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_pro
 		programmedAction := messages_protocol.ProgrammedActionOperation{
 			Operation: action.Operation,
 			Repeat:    action.ProgrammedAction.Repeat,
-			Action: &messages_protocol.PinStatePair{
-				Pin:   action.ProgrammedAction.Action.Action.Pin,
-				State: action.ProgrammedAction.Action.Action.State,
+			ProgrammedAction: &messages_protocol.ProgrammedAction{
+				Action: &messages_protocol.PinStatePair{
+					Pin:   action.ProgrammedAction.Action.Action.Pin,
+					State: action.ProgrammedAction.Action.Action.State,
+				},
+				Time: time,
 			},
-			Time: time,
 		}
 		actions.ProgrammedActionOperations = []*messages_protocol.ProgrammedActionOperation{&programmedAction}
 	case <-time.After(timeWaitingForNewActions):
@@ -203,6 +228,6 @@ func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_pro
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	previousClientData := s.clientsRegistered[p.Addr]
-	s.clientsRegistered[p.Addr] = dateStringsPair{time.Now(), previousClientData.Pins}
+	s.clientsRegistered[p.Addr] = clientRegisteredData{time.Now(), previousClientData.Pins, previousClientData.ProgrammedActions}
 	return &actions, nil
 }
