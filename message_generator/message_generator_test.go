@@ -4,18 +4,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
+	"github.com/Alberto-Izquierdo/RPIHomeServer-go/types"
 	"github.com/stretchr/testify/require"
 )
 
 func TestActionTwoSecondsDelay(t *testing.T) {
-	actionTimes := []configuration_loader.ActionTime{
-		configuration_loader.ActionTime{configuration_loader.Action{"light", false}, configuration_loader.MyTime(time.Now().Add(time.Minute * -10))},
-		configuration_loader.ActionTime{configuration_loader.Action{"light", true}, configuration_loader.MyTime(time.Now().Add(time.Second * 2))},
+	programmedActions := []types.ProgrammedAction{
+		types.ProgrammedAction{Action: types.Action{"light", false}, Time: types.MyTime(time.Now().Add(time.Minute * -10)), Repeat: true},
+		types.ProgrammedAction{Action: types.Action{"light", true}, Time: types.MyTime(time.Now().Add(time.Second * 2)), Repeat: true},
 	}
-	c := make(chan configuration_loader.Action)
+	c := make(chan types.Action)
 	exitChan := make(chan bool)
-	err := Run(actionTimes, c, exitChan)
+	err := Run(programmedActions, c, exitChan)
 	require.Nil(t, err)
 	select {
 	case nextAction := <-c:

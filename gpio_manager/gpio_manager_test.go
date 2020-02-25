@@ -3,6 +3,7 @@ package gpio_manager
 import (
 	"testing"
 
+	"github.com/Alberto-Izquierdo/RPIHomeServer-go/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -10,7 +11,7 @@ func TestGpioManager(t *testing.T) {
 	defer ClearAllPins()
 	pinState := GetPinState("test")
 	assert.Equal(t, pinState, false, "GetPinState(%v) == %v, want %v", "test", pinState, false)
-	pins := []PairNamePin{PairNamePin{"test", 18}}
+	pins := []types.PairNamePin{types.PairNamePin{"test", 18}}
 	err := Setup(pins)
 	assert.Equal(t, err, nil, "Setup error: %s", err)
 	pinState = GetPinState("test")
@@ -38,7 +39,7 @@ func TestGpioManager(t *testing.T) {
 }
 
 func TestGpioManagerEmptyPins(t *testing.T) {
-	pins := []PairNamePin{}
+	pins := []types.PairNamePin{}
 	err := Setup(pins)
 	assert.NotEqual(t, err, nil, "Setup with empty pins should have failed")
 	pinsActive := GetPinsAvailable()
@@ -46,7 +47,7 @@ func TestGpioManagerEmptyPins(t *testing.T) {
 }
 
 func TestWrongNamePin(t *testing.T) {
-	pins := []PairNamePin{PairNamePin{"GetPinsAvailable", 18}, PairNamePin{"test2", 11}}
+	pins := []types.PairNamePin{types.PairNamePin{"GetPinsAvailable", 18}, types.PairNamePin{"test2", 11}}
 	err := Setup(pins)
 	assert.NotEqual(t, err, nil, "Pin with name \"GetPinsAvailable\" should return an error")
 	pinsActive := GetPinsAvailable()
@@ -54,7 +55,7 @@ func TestWrongNamePin(t *testing.T) {
 }
 
 func TestGetPinsAvailable(t *testing.T) {
-	pins := []PairNamePin{PairNamePin{"test", 18}, PairNamePin{"test2", 11}}
+	pins := []types.PairNamePin{types.PairNamePin{"test", 18}, types.PairNamePin{"test2", 11}}
 	err := Setup(pins)
 	assert.Equal(t, err, nil, "Setup error: %s", err)
 	pinsActive := GetPinsAvailable()

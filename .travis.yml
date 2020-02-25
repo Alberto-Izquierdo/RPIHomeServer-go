@@ -1,7 +1,8 @@
 language: go
 dist: bionic
 go:
-    - 1.13.1
+    - 1.14
+
 env:
   matrix:
     - TARGET=desktop

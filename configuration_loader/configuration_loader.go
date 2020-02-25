@@ -7,22 +7,9 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/Alberto-Izquierdo/RPIHomeServer-go/gpio_manager"
+	"github.com/Alberto-Izquierdo/RPIHomeServer-go/types"
 )
-
-type MyTime time.Time
-
-type ActionTime struct {
-	Action Action
-	Time   MyTime
-}
-
-type Action struct {
-	Pin   string
-	State bool
-}
 
 type ServerConfiguration struct {
 	GRPCServerPort          int
@@ -32,24 +19,9 @@ type ServerConfiguration struct {
 
 type InitialConfiguration struct {
 	GRPCServerIp        string
-	PinsActive          []gpio_manager.PairNamePin
+	PinsActive          []types.PairNamePin
 	ServerConfiguration *ServerConfiguration
-	AutomaticMessages   []ActionTime
-}
-
-func (a *MyTime) UnmarshalJSON(b []byte) error {
-	s := strings.Trim(string(b), "\"")
-	t, err := time.Parse("15:04:05", s)
-	if err != nil {
-		return err
-	}
-	*a = MyTime(t)
-	return nil
-}
-
-func (a MyTime) Format(s string) string {
-	t := time.Time(a)
-	return t.Format(s)
+	AutomaticMessages   []types.ProgrammedAction
 }
 
 func loadConfigurationFromFileContent(fileContent []byte) (result InitialConfiguration, err error) {
