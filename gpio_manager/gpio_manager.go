@@ -4,17 +4,13 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/Alberto-Izquierdo/RPIHomeServer-go/types"
 	"github.com/stianeikeland/go-rpio"
 )
 
-type PairNamePin struct {
-	Name string
-	Pin  int
-}
-
 const EmptyPins string = "Pins can not be empty"
 
-func Setup(pins []PairNamePin) (err error) {
+func Setup(pins []types.PairNamePin) (err error) {
 	if len(pins) == 0 {
 		err = errors.New(EmptyPins)
 		return err

@@ -13,6 +13,7 @@ import (
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/grpc_server"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/message_generator"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/telegram_bot"
+	"github.com/Alberto-Izquierdo/RPIHomeServer-go/types"
 )
 
 var mainExitChannel = make(chan bool)
@@ -39,7 +40,7 @@ func main() {
 
 	// gRPC server and telegram bot
 	if config.ServerConfiguration != nil {
-		tgGrpcActionsChannel := make(chan configuration_loader.Action)
+		tgGrpcActionsChannel := make(chan types.Action)
 		tgGrpcResponsesChannel := make(chan string)
 		exitChannels = append(exitChannels, make(chan bool))
 		err = telegram_bot.LaunchTelegramBot(config, tgGrpcActionsChannel, tgGrpcResponsesChannel, exitChannels[len(exitChannels)-1])
@@ -56,7 +57,7 @@ func main() {
 	}
 
 	// gRPC client
-	gRPCClientActionsChannel := make(chan configuration_loader.Action)
+	gRPCClientActionsChannel := make(chan types.Action)
 	exitChannels = append(exitChannels, make(chan bool))
 	err = grpc_client.Run(config, exitChannels[len(exitChannels)-1], gRPCClientActionsChannel, nil, mainExitChannel)
 	if err != nil {

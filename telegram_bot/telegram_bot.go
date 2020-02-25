@@ -8,10 +8,11 @@ import (
 	"time"
 
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
+	"github.com/Alberto-Izquierdo/RPIHomeServer-go/types"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-func LaunchTelegramBot(config configuration_loader.InitialConfiguration, outputChannel chan configuration_loader.Action, inputChannel chan string, exitChannel chan bool) error {
+func LaunchTelegramBot(config configuration_loader.InitialConfiguration, outputChannel chan types.Action, inputChannel chan string, exitChannel chan bool) error {
 	bot, err := tgbotapi.NewBotAPI(config.ServerConfiguration.TelegramBotToken)
 	if err != nil {
 		return err
@@ -82,23 +83,23 @@ func LaunchTelegramBot(config configuration_loader.InitialConfiguration, outputC
 	return nil
 }
 
-func turnPinOn(message string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, outputChannel chan configuration_loader.Action, inputChannel chan string) tgbotapi.MessageConfig {
+func turnPinOn(message string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, outputChannel chan types.Action, inputChannel chan string) tgbotapi.MessageConfig {
 	firstPart := strings.Fields(message)[0]
 	pin := firstPart[:len(firstPart)-2]
-	outputChannel <- configuration_loader.Action{pin, true}
+	outputChannel <- types.Action{pin, true}
 	response := <-inputChannel
 	return buildMessage(response, chatId, replyToMessageId)
 }
 
-func turnPinOff(message string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, outputChannel chan configuration_loader.Action, inputChannel chan string) tgbotapi.MessageConfig {
+func turnPinOff(message string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, outputChannel chan types.Action, inputChannel chan string) tgbotapi.MessageConfig {
 	firstPart := strings.Fields(message)[0]
 	pin := firstPart[:len(firstPart)-3]
-	outputChannel <- configuration_loader.Action{pin, false}
+	outputChannel <- types.Action{pin, false}
 	response := <-inputChannel
 	return buildMessage(response, chatId, replyToMessageId)
 }
 
-func turnPinOnAndOff(message string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, outputChannel chan configuration_loader.Action, inputChannel chan string) tgbotapi.MessageConfig {
+func turnPinOnAndOff(message string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, outputChannel chan types.Action, inputChannel chan string) tgbotapi.MessageConfig {
 	fields := strings.Fields(message)
 	if len(fields) < 2 {
 		return buildMessage("OnAndOff messages should contain at least two words (action and time)", chatId, replyToMessageId)
@@ -109,16 +110,16 @@ func turnPinOnAndOff(message string, config configuration_loader.InitialConfigur
 	if err != nil {
 		return buildMessage("Time not set properly", chatId, replyToMessageId)
 	}
-	outputChannel <- configuration_loader.Action{pin, true}
+	outputChannel <- types.Action{pin, true}
 	<-inputChannel
 	time.Sleep(duration)
-	outputChannel <- configuration_loader.Action{pin, false}
+	outputChannel <- types.Action{pin, false}
 	<-inputChannel
 	response := pin + " turned OnAndOff"
 	return buildMessage(response, chatId, replyToMessageId)
 }
 
-type messageHandlingFunc func(action string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, outputChannel chan configuration_loader.Action, inputChannel chan string) tgbotapi.MessageConfig
+type messageHandlingFunc func(action string, config configuration_loader.InitialConfiguration, chatId int64, replyToMessageId int, outputChannel chan types.Action, inputChannel chan string) tgbotapi.MessageConfig
 
 func buildMessage(msgContent string, chatId int64, replyToMessageId int) tgbotapi.MessageConfig {
 	msg := tgbotapi.NewMessage(chatId, msgContent)
@@ -126,8 +127,8 @@ func buildMessage(msgContent string, chatId int64, replyToMessageId int) tgbotap
 	return msg
 }
 
-func getMessagesAvailable(outputChannel chan configuration_loader.Action, inputChannel chan string) []string {
-	outputChannel <- configuration_loader.Action{"start", true}
+func getMessagesAvailable(outputChannel chan types.Action, inputChannel chan string) []string {
+	outputChannel <- types.Action{"start", true}
 	message := <-inputChannel
 	return strings.Fields(message)
 }

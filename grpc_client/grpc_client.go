@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
-	"github.com/Alberto-Izquierdo/RPIHomeServer-go/message_generator"
 	messages_protocol "github.com/Alberto-Izquierdo/RPIHomeServer-go/messages"
+	"github.com/Alberto-Izquierdo/RPIHomeServer-go/types"
 	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc"
 )
@@ -19,8 +19,8 @@ const numberOfReconnectingAttemptsUntilShutdown int = 30
 const EmptyPinsMessage string = "There are not any pins active, gRPC client will not be run"
 
 func Run(config configuration_loader.InitialConfiguration,
-	exitChannel chan bool, outputChannel chan configuration_loader.Action,
-	programmedActionsChannel chan message_generator.ProgrammedActionOperation,
+	exitChannel chan bool, outputChannel chan types.Action,
+	programmedActionsChannel chan types.ProgrammedActionOperation,
 	mainExitChannel chan bool) error {
 
 	if len(config.PinsActive) == 0 {
@@ -30,7 +30,15 @@ func Run(config configuration_loader.InitialConfiguration,
 	if err != nil {
 		return errors.New("There was an error connecting to the gRPC server: " + err.Error())
 	}
-	err = registerPinsToGRPCServer(client, config)
+	var programmedActions []types.ProgrammedAction
+	for _, programmedMessage := range config.AutomaticMessages {
+		programmedActions = append(programmedActions, types.ProgrammedAction{
+			Action: programmedMessage.Action,
+			Repeat: programmedMessage.Repeat,
+			Time:   programmedMessage.Time,
+		})
+	}
+	err = registerPinsToGRPCServer(client, config, programmedActions)
 	if err != nil {
 		return errors.New("There was an error connecting to the gRPC server: " + err.Error())
 	}
@@ -54,7 +62,9 @@ func Run(config configuration_loader.InitialConfiguration,
 					attempts := 0
 					for err != nil {
 						if attempts < numberOfReconnectingAttemptsUntilShutdown {
-							err = registerPinsToGRPCServer(client, config)
+							var programmedActions []types.ProgrammedAction
+							// TODO: add programmed actions from message_generator
+							err = registerPinsToGRPCServer(client, config, programmedActions)
 							if err != nil {
 								select {
 								case <-exitChannel:
@@ -93,11 +103,14 @@ func connectToGrpcServer(config configuration_loader.InitialConfiguration) (clie
 	return client, connection, err
 }
 
-func registerPinsToGRPCServer(client messages_protocol.RPIHomeServerServiceClient, config configuration_loader.InitialConfiguration) (err error) {
+func registerPinsToGRPCServer(client messages_protocol.RPIHomeServerServiceClient,
+	config configuration_loader.InitialConfiguration,
+	programmedActions []types.ProgrammedAction) (err error) {
 	var pins []string
 	for _, pin := range config.PinsActive {
 		pins = append(pins, pin.Name)
 	}
+	// TODO: add programmed actions
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	result, err := client.RegisterToServer(ctx, &messages_protocol.RegistrationMessage{PinsToHandle: pins})
@@ -115,8 +128,8 @@ func registerPinsToGRPCServer(client messages_protocol.RPIHomeServerServiceClien
 }
 
 func checkForActions(client messages_protocol.RPIHomeServerServiceClient,
-	outputChannel chan configuration_loader.Action,
-	programmedActionsChannel chan message_generator.ProgrammedActionOperation) error {
+	outputChannel chan types.Action,
+	programmedActionsChannel chan types.ProgrammedActionOperation) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
@@ -125,7 +138,7 @@ func checkForActions(client messages_protocol.RPIHomeServerServiceClient,
 		return err
 	}
 	for _, action := range actions.Actions {
-		outputChannel <- configuration_loader.Action{action.Pin, action.State}
+		outputChannel <- types.Action{action.Pin, action.State}
 	}
 	for _, programmedAction := range actions.ProgrammedActionOperations {
 		timestamp, err := ptypes.Timestamp(programmedAction.ProgrammedAction.Time)
@@ -135,17 +148,15 @@ func checkForActions(client messages_protocol.RPIHomeServerServiceClient,
 		for timestamp.Before(time.Now()) {
 			timestamp = timestamp.Add(time.Hour * 24)
 		}
-		action := message_generator.ProgrammedActionOperation{
+		action := types.ProgrammedActionOperation{
 			Operation: programmedAction.Operation,
-			ProgrammedAction: message_generator.ProgrammedAction{
-				Action: configuration_loader.ActionTime{
-					Action: configuration_loader.Action{
-						programmedAction.ProgrammedAction.Action.Pin,
-						programmedAction.ProgrammedAction.Action.State,
-					},
-					Time: configuration_loader.MyTime(timestamp),
+			ProgrammedAction: types.ProgrammedAction{
+				Action: types.Action{
+					programmedAction.ProgrammedAction.Action.Pin,
+					programmedAction.ProgrammedAction.Action.State,
 				},
-				Repeat: programmedAction.Repeat,
+				Time:   types.MyTime(timestamp),
+				Repeat: programmedAction.ProgrammedAction.Repeat,
 			},
 		}
 		programmedActionsChannel <- action

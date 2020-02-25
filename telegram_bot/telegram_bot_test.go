@@ -5,13 +5,13 @@ import (
 	"time"
 
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
-	"github.com/Alberto-Izquierdo/RPIHomeServer-go/gpio_manager"
+	"github.com/Alberto-Izquierdo/RPIHomeServer-go/types"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestWrongConfig(t *testing.T) {
-	telegramOutputChannel := make(chan configuration_loader.Action)
+	telegramOutputChannel := make(chan types.Action)
 	telegramInputChannel := make(chan string)
 	telegramExitChannel := make(chan bool)
 	var config configuration_loader.InitialConfiguration
@@ -24,7 +24,7 @@ func TestWrongConfig(t *testing.T) {
 }
 
 func TestLaunchTelegramBot(t *testing.T) {
-	telegramOutputChannel := make(chan configuration_loader.Action)
+	telegramOutputChannel := make(chan types.Action)
 	telegramInputChannel := make(chan string)
 	telegramExitChannel := make(chan bool)
 	var config configuration_loader.InitialConfiguration
@@ -32,7 +32,7 @@ func TestLaunchTelegramBot(t *testing.T) {
 	config.ServerConfiguration = &serverConfig
 	config.ServerConfiguration.TelegramBotToken = "153667468:AAHlSHlMqSt1f_uFmVRJbm5gntu2HI4WW8I"
 	config.ServerConfiguration.TelegramAuthorizedUsers = append(config.ServerConfiguration.TelegramAuthorizedUsers, 1234, 5678)
-	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Light", 1})
+	config.PinsActive = append(config.PinsActive, types.PairNamePin{"Light", 1})
 	go func() {
 		time.Sleep(2 * time.Second)
 		telegramExitChannel <- true
@@ -62,9 +62,9 @@ func TestGetMessagesAvailableMarkup(t *testing.T) {
 
 func TestTurnPinOn(t *testing.T) {
 	var config configuration_loader.InitialConfiguration
-	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Light", 1})
-	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Water", 2})
-	telegramOutputChannel := make(chan configuration_loader.Action)
+	config.PinsActive = append(config.PinsActive, types.PairNamePin{"Light", 1})
+	config.PinsActive = append(config.PinsActive, types.PairNamePin{"Water", 2})
+	telegramOutputChannel := make(chan types.Action)
 	telegramInputChannel := make(chan string)
 	go func() {
 		turnPinOn("LightOn", config, 0, 0, telegramOutputChannel, telegramInputChannel)
@@ -84,9 +84,9 @@ func TestTurnPinOn(t *testing.T) {
 
 func TestTurnPinOff(t *testing.T) {
 	var config configuration_loader.InitialConfiguration
-	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Light", 1})
-	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Water", 2})
-	telegramOutputChannel := make(chan configuration_loader.Action)
+	config.PinsActive = append(config.PinsActive, types.PairNamePin{"Light", 1})
+	config.PinsActive = append(config.PinsActive, types.PairNamePin{"Water", 2})
+	telegramOutputChannel := make(chan types.Action)
 	telegramInputChannel := make(chan string)
 	go func() {
 		turnPinOff("LightOff", config, 0, 0, telegramOutputChannel, telegramInputChannel)
@@ -106,9 +106,9 @@ func TestTurnPinOff(t *testing.T) {
 
 func TestTurnPinOnAndOff(t *testing.T) {
 	var config configuration_loader.InitialConfiguration
-	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Light", 1})
-	config.PinsActive = append(config.PinsActive, gpio_manager.PairNamePin{"Water", 2})
-	telegramOutputChannel := make(chan configuration_loader.Action)
+	config.PinsActive = append(config.PinsActive, types.PairNamePin{"Light", 1})
+	config.PinsActive = append(config.PinsActive, types.PairNamePin{"Water", 2})
+	telegramOutputChannel := make(chan types.Action)
 	telegramInputChannel := make(chan string)
 	msg := turnPinOnAndOff("LightOnAndOff", config, 0, 0, telegramOutputChannel, telegramInputChannel)
 	assert.Equal(t, msg.Text, "OnAndOff messages should contain at least two words (action and time)", "Wrong message should return an error")
