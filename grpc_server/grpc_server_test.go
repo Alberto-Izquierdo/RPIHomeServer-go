@@ -30,7 +30,6 @@ func TestWrongConfig(t *testing.T) {
 	err = SetupAndRun(config, nil, nil, nil, exitChannel)
 	assert.Equal(t, err, nil, "Correct server config should not return an error")
 	exitChannel <- true
-	<-exitChannel
 }
 
 func TestRegisterToServer(t *testing.T) {

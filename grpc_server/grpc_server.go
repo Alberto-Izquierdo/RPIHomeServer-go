@@ -52,7 +52,6 @@ func run(server *grpc.Server, rpiServer *rpiHomeServer, listener *net.Listener, 
 		case <-exitChannel:
 			server.GracefulStop()
 			fmt.Println("Exit signal received in gRPC server")
-			exitChannel <- true
 			return
 		case action := <-inputChannel:
 			if action.Pin == "start" {

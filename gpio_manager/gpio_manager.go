@@ -36,7 +36,11 @@ func Setup(pins []types.PairNamePin) (err error) {
 	return err
 }
 
-func SetPinState(pin string, state bool) (bool, error) {
+func HandleAction(action types.Action) (bool, error) {
+	return setPinState(action.Pin, action.State)
+}
+
+func setPinState(pin string, state bool) (bool, error) {
 	if state {
 		return TurnPinOn(pin)
 	} else {

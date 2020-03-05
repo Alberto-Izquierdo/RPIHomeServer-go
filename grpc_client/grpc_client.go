@@ -3,7 +3,6 @@ package grpc_client
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
@@ -26,7 +25,7 @@ func Run(config configuration_loader.InitialConfiguration,
 	if len(config.PinsActive) == 0 {
 		return errors.New(EmptyPinsMessage)
 	}
-	client, connection, err := connectToGrpcServer(config)
+	client, _, err := ConnectToGrpcServer(config)
 	if err != nil {
 		return errors.New("There was an error connecting to the gRPC server: " + err.Error())
 	}
@@ -38,64 +37,14 @@ func Run(config configuration_loader.InitialConfiguration,
 			Time:   programmedMessage.Time,
 		})
 	}
-	err = registerPinsToGRPCServer(client, config, programmedActions)
+	err = RegisterPinsToGRPCServer(client, config, programmedActions)
 	if err != nil {
 		return errors.New("There was an error connecting to the gRPC server: " + err.Error())
 	}
-	go func() {
-		for {
-			select {
-			case <-exitChannel:
-				err = unregisterPins(client)
-				if err != nil {
-					fmt.Println("There was an error unregistering in gRPC client: ", err.Error())
-				}
-				fmt.Println("Exit signal received in gRPC client")
-				exitChannel <- true
-				return
-			default:
-				err = checkForActions(client, outputChannel, programmedActionsChannel)
-				if err != nil {
-					fmt.Println("There was an error checking actions in gRPC client: ", err.Error())
-					fmt.Println("Trying to reconnect to server...")
-					time.Sleep(1 * time.Second)
-					attempts := 0
-					for err != nil {
-						if attempts < numberOfReconnectingAttemptsUntilShutdown {
-							var programmedActions []types.ProgrammedAction
-							// TODO: add programmed actions from message_generator
-							err = registerPinsToGRPCServer(client, config, programmedActions)
-							if err != nil {
-								select {
-								case <-exitChannel:
-									fmt.Println("Exit signal received in gRPC client")
-									exitChannel <- true
-									return
-								case <-time.After(timeBetweenReconnectionAttempts):
-									fmt.Println("There was an error connecting to the gRPC server: " + err.Error())
-									fmt.Println("Trying again in " + timeBetweenReconnectionAttempts.String() + "...")
-									attempts += 1
-								}
-							} else {
-								fmt.Println("Reconnected!")
-								break
-							}
-						} else {
-							fmt.Println("Could not reconnect to the server, closing the application...")
-							mainExitChannel <- true
-							time.Sleep(time.Second * 1)
-							break
-						}
-					}
-				}
-			}
-		}
-		defer connection.Close()
-	}()
 	return nil
 }
 
-func connectToGrpcServer(config configuration_loader.InitialConfiguration) (client messages_protocol.RPIHomeServerServiceClient, connection *grpc.ClientConn, err error) {
+func ConnectToGrpcServer(config configuration_loader.InitialConfiguration) (client messages_protocol.RPIHomeServerServiceClient, connection *grpc.ClientConn, err error) {
 	connection, err = grpc.Dial(config.GRPCServerIp, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(time.Second))
 	if err == nil {
 		client = messages_protocol.NewRPIHomeServerServiceClient(connection)
@@ -103,7 +52,7 @@ func connectToGrpcServer(config configuration_loader.InitialConfiguration) (clie
 	return client, connection, err
 }
 
-func registerPinsToGRPCServer(client messages_protocol.RPIHomeServerServiceClient,
+func RegisterPinsToGRPCServer(client messages_protocol.RPIHomeServerServiceClient,
 	config configuration_loader.InitialConfiguration,
 	programmedActions []types.ProgrammedAction) (err error) {
 	var pins []string
@@ -127,20 +76,19 @@ func registerPinsToGRPCServer(client messages_protocol.RPIHomeServerServiceClien
 	return err
 }
 
-func checkForActions(client messages_protocol.RPIHomeServerServiceClient,
-	outputChannel chan types.Action,
-	programmedActionsChannel chan types.ProgrammedActionOperation) error {
-
+func CheckForActions(client messages_protocol.RPIHomeServerServiceClient) ([]types.Action, []types.ProgrammedActionOperation, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	actions, err := client.CheckForActions(ctx, &messages_protocol.Empty{})
+	protoActions, err := client.CheckForActions(ctx, &messages_protocol.Empty{})
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-	for _, action := range actions.Actions {
-		outputChannel <- types.Action{action.Pin, action.State}
+	var actions []types.Action
+	for _, action := range protoActions.Actions {
+		actions = append(actions, types.Action{action.Pin, action.State})
 	}
-	for _, programmedAction := range actions.ProgrammedActionOperations {
+	var programmedActionOperations []types.ProgrammedActionOperation
+	for _, programmedAction := range protoActions.ProgrammedActionOperations {
 		timestamp, err := ptypes.Timestamp(programmedAction.ProgrammedAction.Time)
 		if err != nil {
 			continue
@@ -159,12 +107,12 @@ func checkForActions(client messages_protocol.RPIHomeServerServiceClient,
 				Repeat: programmedAction.ProgrammedAction.Repeat,
 			},
 		}
-		programmedActionsChannel <- action
+		programmedActionOperations = append(programmedActionOperations, action)
 	}
-	return nil
+	return actions, programmedActionOperations, nil
 }
 
-func unregisterPins(client messages_protocol.RPIHomeServerServiceClient) (err error) {
+func UnregisterPins(client messages_protocol.RPIHomeServerServiceClient) (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	_, err = client.UnregisterToServer(ctx, &messages_protocol.Empty{})

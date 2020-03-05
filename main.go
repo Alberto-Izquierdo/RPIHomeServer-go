@@ -8,10 +8,8 @@ import (
 	"os/signal"
 
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
-	"github.com/Alberto-Izquierdo/RPIHomeServer-go/gpio_manager"
-	"github.com/Alberto-Izquierdo/RPIHomeServer-go/grpc_client"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/grpc_server"
-	"github.com/Alberto-Izquierdo/RPIHomeServer-go/message_generator"
+	"github.com/Alberto-Izquierdo/RPIHomeServer-go/rpi_client"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/telegram_bot"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/types"
 )
@@ -24,16 +22,6 @@ func main() {
 	if err != nil {
 		fmt.Println("There was an error parsing the configuration file: ", err.Error())
 		return
-	}
-	err = gpio_manager.Setup(config.PinsActive)
-	defer gpio_manager.ClearAllPins()
-	if err != nil {
-		if err.Error() == gpio_manager.EmptyPins {
-			fmt.Println("There are not any pins active, the program will act just as server")
-		} else {
-			fmt.Println("There was an error setting up the GPIO manager: ", err.Error())
-			return
-		}
 	}
 	// general variables
 	var exitChannels []chan bool
@@ -56,44 +44,17 @@ func main() {
 		}
 	}
 
-	// gRPC client
-	gRPCClientActionsChannel := make(chan types.Action)
+	// RPI client (gRPC, message_generator and GPIO manager)
 	exitChannels = append(exitChannels, make(chan bool))
-	err = grpc_client.Run(config, exitChannels[len(exitChannels)-1], gRPCClientActionsChannel, nil, mainExitChannel)
-	if err != nil {
-		exitChannels = exitChannels[:len(exitChannels)-1]
-		if err.Error() == grpc_client.EmptyPinsMessage || config.ServerConfiguration != nil {
-			fmt.Println(err.Error())
-		} else {
-			fmt.Println("Error while setting up gRPC client: " + err.Error())
-			return
-		}
-	} else {
-	}
-	//TODO: gRPCClientMessagesChannel := make(chan string)
+	err = rpi_client.SetupAndRun(config, exitChannels[len(exitChannels)-1])
 
-	if len(config.AutomaticMessages) > 0 {
-		exitChannels = append(exitChannels, make(chan bool))
-		err = message_generator.Run(config.AutomaticMessages, gRPCClientActionsChannel, exitChannels[len(exitChannels)-1])
-		if err != nil {
-			fmt.Println("Error while setting up message generator: " + err.Error())
-			return
-		}
-	}
 	fmt.Println("Waiting for messages")
-	var exit = false
-	for !exit {
-		select {
-		case action := <-gRPCClientActionsChannel:
-			gpio_manager.SetPinState(action.Pin, action.State)
-		case exit = <-mainExitChannel:
-			for index := range exitChannels {
-				exitChannels[len(exitChannels)-1-index] <- true
-			}
-			for _, exitChannel := range exitChannels {
-				<-exitChannel
-			}
-		}
+	<-mainExitChannel
+	for index := range exitChannels {
+		exitChannels[len(exitChannels)-1-index] <- true
+	}
+	for _, exitChannel := range exitChannels {
+		<-exitChannel
 	}
 	fmt.Println("Done!")
 }
