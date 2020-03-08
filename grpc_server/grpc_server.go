@@ -19,7 +19,7 @@ import (
 
 const timeWaitingForNewActions time.Duration = 2 * time.Second
 
-func SetupAndRun(config configuration_loader.InitialConfiguration, inputChannel chan types.Action, responsesChannel chan string, programmedActionsChannel chan types.ProgrammedActionOperation, exitChannel chan bool) error {
+func SetupAndRun(config configuration_loader.InitialConfiguration, inputChannel chan types.Action, responsesChannel chan types.TelegramMessage, programmedActionsChannel chan types.ProgrammedActionOperation, exitChannel chan bool) error {
 	if config.ServerConfiguration == nil {
 		return errors.New("Server parameters not set in the configuration file")
 	}
@@ -39,13 +39,14 @@ func SetupAndRun(config configuration_loader.InitialConfiguration, inputChannel 
 		clientsRegistered: make(map[net.Addr]clientRegisteredData),
 		actionsToPerform:  make(map[net.Addr]chan types.Action),
 		programmedActions: make(map[net.Addr]chan types.ProgrammedActionOperation),
+		responsesChannel:  responsesChannel,
 	}
 	messages_protocol.RegisterRPIHomeServerServiceServer(server, &rpiServer)
 	go run(server, &rpiServer, &lis, exitChannel, inputChannel, responsesChannel, programmedActionsChannel)
 	return nil
 }
 
-func run(server *grpc.Server, rpiServer *rpiHomeServer, listener *net.Listener, exitChannel chan bool, inputChannel chan types.Action, responsesChannel chan string, programmedActionsChannel chan types.ProgrammedActionOperation) {
+func run(server *grpc.Server, rpiServer *rpiHomeServer, listener *net.Listener, exitChannel chan bool, inputChannel chan types.Action, responsesChannel chan types.TelegramMessage, programmedActionsChannel chan types.ProgrammedActionOperation) {
 	go server.Serve(*listener)
 	for {
 		select {
@@ -56,15 +57,15 @@ func run(server *grpc.Server, rpiServer *rpiHomeServer, listener *net.Listener, 
 			return
 		case action := <-inputChannel:
 			if action.Pin == "start" {
-				responsesChannel <- rpiServer.getPinsAndUpdateMap()
+				activePins := "start " + rpiServer.getPinsAndUpdateMap()
+				responsesChannel <- types.TelegramMessage{activePins, action.ChatId}
 			} else {
 				rpiServer.mutex.Lock()
 				client, err := getClientAssociatedWithPin(action.Pin, rpiServer)
 				if err != nil {
-					responsesChannel <- err.Error()
+					responsesChannel <- types.TelegramMessage{err.Error(), action.ChatId}
 				} else {
 					rpiServer.actionsToPerform[client] <- action
-					responsesChannel <- "Action received!"
 				}
 				rpiServer.mutex.Unlock()
 			}
@@ -72,13 +73,12 @@ func run(server *grpc.Server, rpiServer *rpiHomeServer, listener *net.Listener, 
 			rpiServer.mutex.Lock()
 			client, err := getClientAssociatedWithPin(action.ProgrammedAction.Action.Pin, rpiServer)
 			if err != nil {
-				responsesChannel <- err.Error()
+				responsesChannel <- types.TelegramMessage{err.Error(), action.ProgrammedAction.Action.ChatId}
 			} else {
 				rpiServer.programmedActions[client] <- action
-				responsesChannel <- "Action received!"
+				//responsesChannel <- types.TelegramMessage{"Action received!", action.ProgrammedAction.Action.ChatId}
 			}
 			rpiServer.mutex.Unlock()
-
 		}
 	}
 }
@@ -99,6 +99,7 @@ type rpiHomeServer struct {
 	clientsRegistered map[net.Addr]clientRegisteredData
 	actionsToPerform  map[net.Addr]chan types.Action
 	programmedActions map[net.Addr]chan types.ProgrammedActionOperation
+	responsesChannel  chan types.TelegramMessage
 	mutex             sync.Mutex
 }
 
@@ -201,7 +202,11 @@ func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_pro
 	actions := messages_protocol.ActionsToPerform{}
 	select {
 	case action := <-s.actionsToPerform[p.Addr]:
-		protoAction := messages_protocol.PinStatePair{Pin: action.Pin, State: action.State}
+		protoAction := messages_protocol.PinStatePair{
+			Pin:    action.Pin,
+			State:  action.State,
+			ChatId: action.ChatId,
+		}
 		actions.Actions = []*messages_protocol.PinStatePair{&protoAction}
 	case action := <-s.programmedActions[p.Addr]:
 		time, err := ptypes.TimestampProto(time.Time(action.ProgrammedAction.Time))
@@ -212,8 +217,9 @@ func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_pro
 			Operation: action.Operation,
 			ProgrammedAction: &messages_protocol.ProgrammedAction{
 				Action: &messages_protocol.PinStatePair{
-					Pin:   action.ProgrammedAction.Action.Pin,
-					State: action.ProgrammedAction.Action.State,
+					Pin:    action.ProgrammedAction.Action.Pin,
+					State:  action.ProgrammedAction.Action.State,
+					ChatId: action.ProgrammedAction.Action.ChatId,
 				},
 				Time:   time,
 				Repeat: action.ProgrammedAction.Repeat,
@@ -228,4 +234,9 @@ func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_pro
 	previousClientData := s.clientsRegistered[p.Addr]
 	s.clientsRegistered[p.Addr] = clientRegisteredData{time.Now(), previousClientData.Pins, previousClientData.ProgrammedActions}
 	return &actions, nil
+}
+
+func (s *rpiHomeServer) SendMessageToTelegram(ctx context.Context, message *messages_protocol.TelegramMessage) (*messages_protocol.Empty, error) {
+	s.responsesChannel <- types.TelegramMessage{message.Message, message.ChatId}
+	return &messages_protocol.Empty{}, nil
 }

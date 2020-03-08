@@ -12,7 +12,7 @@ import (
 
 func TestWrongConfig(t *testing.T) {
 	telegramOutputChannel := make(chan types.Action)
-	telegramInputChannel := make(chan string)
+	telegramInputChannel := make(chan types.TelegramMessage)
 	telegramExitChannel := make(chan bool)
 	var config configuration_loader.InitialConfiguration
 	var serverConfig configuration_loader.ServerConfiguration
@@ -25,7 +25,7 @@ func TestWrongConfig(t *testing.T) {
 
 func TestLaunchTelegramBot(t *testing.T) {
 	telegramOutputChannel := make(chan types.Action)
-	telegramInputChannel := make(chan string)
+	telegramInputChannel := make(chan types.TelegramMessage)
 	telegramExitChannel := make(chan bool)
 	var config configuration_loader.InitialConfiguration
 	var serverConfig configuration_loader.ServerConfiguration
@@ -44,7 +44,7 @@ func TestLaunchTelegramBot(t *testing.T) {
 
 func TestGetMessagesAvailableMarkup(t *testing.T) {
 	messages := []string{"Light", "Water"}
-	msg := createMarkupForMessages(messages, 0, 0)
+	msg := createMarkupForMessages(messages, 0)
 	markup, ok := msg.ReplyMarkup.(tgbotapi.ReplyKeyboardMarkup)
 	assert.True(t, ok, "Error getting the message's reply markup")
 	assert.Equal(t, len(markup.Keyboard), 3, "The message should contain three rows (/start, light and water)")
@@ -65,19 +65,16 @@ func TestTurnPinOn(t *testing.T) {
 	config.PinsActive = append(config.PinsActive, types.PairNamePin{"Light", 1})
 	config.PinsActive = append(config.PinsActive, types.PairNamePin{"Water", 2})
 	telegramOutputChannel := make(chan types.Action)
-	telegramInputChannel := make(chan string)
 	go func() {
-		turnPinOn("LightOn", config, 0, 0, telegramOutputChannel, telegramInputChannel)
+		turnPinOn("LightOn", config, 0, 0, telegramOutputChannel)
 	}()
 	action := <-telegramOutputChannel
-	telegramInputChannel <- "test"
 	assert.Equal(t, action.Pin, "Light", "Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
 	assert.Equal(t, action.State, true, "Action's state should be true")
 	go func() {
-		turnPinOn("WaterOn", config, 0, 0, telegramOutputChannel, telegramInputChannel)
+		turnPinOn("WaterOn", config, 0, 0, telegramOutputChannel)
 	}()
 	action = <-telegramOutputChannel
-	telegramInputChannel <- "test"
 	assert.Equal(t, action.Pin, "Water", "Pin name should be \"Water\", instead it is \"%s\"", action.Pin)
 	assert.Equal(t, action.State, true, "Action's state should be true")
 }
@@ -87,19 +84,16 @@ func TestTurnPinOff(t *testing.T) {
 	config.PinsActive = append(config.PinsActive, types.PairNamePin{"Light", 1})
 	config.PinsActive = append(config.PinsActive, types.PairNamePin{"Water", 2})
 	telegramOutputChannel := make(chan types.Action)
-	telegramInputChannel := make(chan string)
 	go func() {
-		turnPinOff("LightOff", config, 0, 0, telegramOutputChannel, telegramInputChannel)
+		turnPinOff("LightOff", config, 0, 0, telegramOutputChannel)
 	}()
 	action := <-telegramOutputChannel
-	telegramInputChannel <- "test"
 	assert.Equal(t, action.Pin, "Light", "Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
 	assert.Equal(t, action.State, false, "Action's state should be true")
 	go func() {
-		turnPinOff("WaterOff", config, 0, 0, telegramOutputChannel, telegramInputChannel)
+		turnPinOff("WaterOff", config, 0, 0, telegramOutputChannel)
 	}()
 	action = <-telegramOutputChannel
-	telegramInputChannel <- "test"
 	assert.Equal(t, action.Pin, "Water", "Pin name should be \"Water\", instead it is \"%s\"", action.Pin)
 	assert.Equal(t, action.State, false, "Action's state should be true")
 }
@@ -109,20 +103,17 @@ func TestTurnPinOnAndOff(t *testing.T) {
 	config.PinsActive = append(config.PinsActive, types.PairNamePin{"Light", 1})
 	config.PinsActive = append(config.PinsActive, types.PairNamePin{"Water", 2})
 	telegramOutputChannel := make(chan types.Action)
-	telegramInputChannel := make(chan string)
-	msg := turnPinOnAndOff("LightOnAndOff", config, 0, 0, telegramOutputChannel, telegramInputChannel)
+	msg := turnPinOnAndOff("LightOnAndOff", config, 0, 0, telegramOutputChannel)
 	assert.Equal(t, msg.Text, "OnAndOff messages should contain at least two words (action and time)", "Wrong message should return an error")
-	msg = turnPinOnAndOff("LightOnAndOff 40w", config, 0, 0, telegramOutputChannel, telegramInputChannel)
+	msg = turnPinOnAndOff("LightOnAndOff 40w", config, 0, 0, telegramOutputChannel)
 	assert.Equal(t, msg.Text, "Time not set properly", "Wrong time format should return an error")
 	go func() {
-		turnPinOnAndOff("LightOnAndOff 1s", config, 0, 0, telegramOutputChannel, telegramInputChannel)
+		turnPinOnAndOff("LightOnAndOff 1s", config, 0, 0, telegramOutputChannel)
 	}()
 	action := <-telegramOutputChannel
-	telegramInputChannel <- "test"
 	assert.Equal(t, action.Pin, "Light", "Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
 	assert.Equal(t, action.State, true, "Action's state should be false")
 	action = <-telegramOutputChannel
-	telegramInputChannel <- "test"
 	assert.Equal(t, action.Pin, "Light", "Pin name should be \"Light\", instead it is \"%s\"", action.Pin)
 	assert.Equal(t, action.State, false, "Action's state should be true")
 }

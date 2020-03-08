@@ -23,13 +23,13 @@ func TestWrongConfig(t *testing.T) {
 	assert.NotEqual(t, err, nil, "Connecting to a non existing server should return an error")
 }
 
-func createServer(t *testing.T) (chan bool, chan types.Action, chan string) {
+func createServer(t *testing.T) (chan bool, chan types.Action, chan types.TelegramMessage) {
 	var serverConfig configuration_loader.InitialConfiguration
 	serverConfig.ServerConfiguration = &configuration_loader.ServerConfiguration{GRPCServerPort: 8080}
 	serverConfig.PinsActive = append(serverConfig.PinsActive, types.PairNamePin{"pin1", 90})
 	serverExitChannel := make(chan bool)
 	outputChannel := make(chan types.Action)
-	responsesChannel := make(chan string)
+	responsesChannel := make(chan types.TelegramMessage)
 	err := grpc_server.SetupAndRun(serverConfig, outputChannel, responsesChannel, nil, serverExitChannel)
 	assert.Nil(t, err)
 	return serverExitChannel, outputChannel, responsesChannel
@@ -79,7 +79,7 @@ func TestCheckForActions(t *testing.T) {
 	assert.Nil(t, err)
 	grpc_client.RegisterPinsToGRPCServer(client, clientConfig, []types.ProgrammedAction{})
 	go func() {
-		serverInputChannel <- types.Action{"pin2", true}
+		serverInputChannel <- types.Action{"pin2", true, 0}
 		<-serverOutputChannel
 	}()
 	actions, _, err := grpc_client.CheckForActions(client)

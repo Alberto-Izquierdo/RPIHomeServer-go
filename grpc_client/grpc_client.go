@@ -58,7 +58,7 @@ func CheckForActions(client messages_protocol.RPIHomeServerServiceClient) ([]typ
 	}
 	var actions []types.Action
 	for _, action := range protoActions.Actions {
-		actions = append(actions, types.Action{action.Pin, action.State})
+		actions = append(actions, types.Action{action.Pin, action.State, action.ChatId})
 	}
 	var programmedActionOperations []types.ProgrammedActionOperation
 	for _, programmedAction := range protoActions.ProgrammedActionOperations {
@@ -75,6 +75,7 @@ func CheckForActions(client messages_protocol.RPIHomeServerServiceClient) ([]typ
 				Action: types.Action{
 					programmedAction.ProgrammedAction.Action.Pin,
 					programmedAction.ProgrammedAction.Action.State,
+					programmedAction.ProgrammedAction.Action.ChatId,
 				},
 				Time:   types.MyTime(timestamp),
 				Repeat: programmedAction.ProgrammedAction.Repeat,
@@ -89,5 +90,12 @@ func UnregisterPins(client messages_protocol.RPIHomeServerServiceClient) (err er
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	_, err = client.UnregisterToServer(ctx, &messages_protocol.Empty{})
+	return err
+}
+
+func SendMessageToTelegram(client messages_protocol.RPIHomeServerServiceClient, message types.TelegramMessage) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, err := client.SendMessageToTelegram(ctx, &messages_protocol.TelegramMessage{Message: message.Message, ChatId: message.ChatId})
 	return err
 }

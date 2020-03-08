@@ -80,7 +80,7 @@ func TestCheckForActions(t *testing.T) {
 	server := rpiHomeServer{clientsRegistered: make(map[net.Addr]clientRegisteredData), actionsToPerform: make(map[net.Addr]chan types.Action)}
 	server.actionsToPerform[conn.LocalAddr()] = make(chan types.Action)
 	go func() {
-		server.actionsToPerform[conn.LocalAddr()] <- types.Action{"pin1", false}
+		server.actionsToPerform[conn.LocalAddr()] <- types.Action{"pin1", false, 0}
 	}()
 	actions, err := server.CheckForActions(ctx, &messages_protocol.Empty{})
 	assert.Equal(t, err, nil, "Check for actions should not return an error")
@@ -119,7 +119,7 @@ func TestGetProgrammedActions(t *testing.T) {
 	go func() {
 		server.programmedActions[conn.LocalAddr()] <- types.ProgrammedActionOperation{
 			types.ProgrammedAction{
-				Action: types.Action{"pin1", false},
+				Action: types.Action{"pin1", false, 0},
 				Time:   types.MyTime(time.Now()),
 				Repeat: false,
 			},
