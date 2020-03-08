@@ -13,8 +13,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-const timeBetweenReconnectionAttempts time.Duration = 2 * time.Second
-const numberOfReconnectingAttemptsUntilShutdown int = 2
+const timeBetweenReconnectionAttempts time.Duration = 10 * time.Second
 
 func connectToGrpcServer(config configuration_loader.InitialConfiguration) (client messages_protocol.RPIHomeServerServiceClient, connection *grpc.ClientConn, err error) {
 	client, connection, err = grpc_client.ConnectToGrpcServer(config)
@@ -81,34 +80,34 @@ func runGRPCClientLoop(grpcClientExitChannel chan bool, client messages_protocol
 				fmt.Println("There was an error checking actions in gRPC client: ", err.Error())
 				fmt.Println("Trying to reconnect to server...")
 				time.Sleep(1 * time.Second)
-				attempts := 0
 				for err != nil {
 					select {
 					case <-grpcClientExitChannel:
 						fmt.Println("Exit signal received in gRPC client")
 						return
 					default:
-						if attempts < numberOfReconnectingAttemptsUntilShutdown {
-							var programmedActions []types.ProgrammedAction
-							// TODO: add programmed actions from message_generator
-							err = grpc_client.RegisterPinsToGRPCServer(client, configuration_loader.InitialConfiguration{}, programmedActions)
-							if err != nil {
-								fmt.Println("There was an error connecting to the gRPC server: " + err.Error())
-								fmt.Println("Trying again in " + timeBetweenReconnectionAttempts.String() + "...")
-								attempts += 1
-							} else {
-								fmt.Println("Reconnected!")
-							}
+						var programmedActions []types.ProgrammedAction
+						// TODO: add programmed actions from message_generator
+						err = grpc_client.RegisterPinsToGRPCServer(client, configuration_loader.InitialConfiguration{}, programmedActions)
+						if err != nil {
+							fmt.Println("There was an error connecting to the gRPC server: " + err.Error())
+							fmt.Println("Trying again in " + timeBetweenReconnectionAttempts.String() + "...")
+							time.Sleep(timeBetweenReconnectionAttempts)
 						} else {
-							fmt.Println("Could not reconnect to the server, closing the application...")
-							time.Sleep(time.Second * 1)
-							return
+							fmt.Println("Reconnected!")
 						}
 					}
 				}
 			} else {
 				for _, action := range actions {
-					gpio_manager.HandleAction(action)
+					success, _ := gpio_manager.HandleAction(action)
+					message := ""
+					if success == true {
+						message = "Action " + action.Pin + " successful"
+					} else {
+						message = "Action " + action.Pin + " not successful"
+					}
+					grpc_client.SendMessageToTelegram(client, types.TelegramMessage{message, action.ChatId})
 				}
 			}
 		}

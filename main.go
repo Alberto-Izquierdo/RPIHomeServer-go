@@ -29,7 +29,7 @@ func main() {
 	// gRPC server and telegram bot
 	if config.ServerConfiguration != nil {
 		tgGrpcActionsChannel := make(chan types.Action)
-		tgGrpcResponsesChannel := make(chan string)
+		tgGrpcResponsesChannel := make(chan types.TelegramMessage)
 		exitChannels = append(exitChannels, make(chan bool))
 		err = telegram_bot.LaunchTelegramBot(config, tgGrpcActionsChannel, tgGrpcResponsesChannel, exitChannels[len(exitChannels)-1])
 		if err != nil {

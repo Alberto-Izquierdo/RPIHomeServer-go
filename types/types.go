@@ -11,8 +11,14 @@ type PairNamePin struct {
 }
 
 type Action struct {
-	Pin   string
-	State bool
+	Pin    string
+	State  bool
+	ChatId int64
+}
+
+type TelegramMessage struct {
+	Message string
+	ChatId  int64
 }
 
 type MyTime time.Time

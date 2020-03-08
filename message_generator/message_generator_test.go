@@ -10,8 +10,8 @@ import (
 
 func TestActionTwoSecondsDelay(t *testing.T) {
 	programmedActions := []types.ProgrammedAction{
-		types.ProgrammedAction{Action: types.Action{"light", false}, Time: types.MyTime(time.Now().Add(time.Minute * -10)), Repeat: true},
-		types.ProgrammedAction{Action: types.Action{"light", true}, Time: types.MyTime(time.Now().Add(time.Second * 2)), Repeat: true},
+		types.ProgrammedAction{Action: types.Action{"light", false, 0}, Time: types.MyTime(time.Now().Add(time.Minute * -10)), Repeat: true},
+		types.ProgrammedAction{Action: types.Action{"light", true, 0}, Time: types.MyTime(time.Now().Add(time.Second * 2)), Repeat: true},
 	}
 	c := make(chan types.Action)
 	exitChan := make(chan bool)
