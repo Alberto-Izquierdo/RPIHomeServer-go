@@ -17,33 +17,6 @@ const numberOfReconnectingAttemptsUntilShutdown int = 30
 
 const EmptyPinsMessage string = "There are not any pins active, gRPC client will not be run"
 
-func Run(config configuration_loader.InitialConfiguration,
-	exitChannel chan bool, outputChannel chan types.Action,
-	programmedActionsChannel chan types.ProgrammedActionOperation,
-	mainExitChannel chan bool) error {
-
-	if len(config.PinsActive) == 0 {
-		return errors.New(EmptyPinsMessage)
-	}
-	client, _, err := ConnectToGrpcServer(config)
-	if err != nil {
-		return errors.New("There was an error connecting to the gRPC server: " + err.Error())
-	}
-	var programmedActions []types.ProgrammedAction
-	for _, programmedMessage := range config.AutomaticMessages {
-		programmedActions = append(programmedActions, types.ProgrammedAction{
-			Action: programmedMessage.Action,
-			Repeat: programmedMessage.Repeat,
-			Time:   programmedMessage.Time,
-		})
-	}
-	err = RegisterPinsToGRPCServer(client, config, programmedActions)
-	if err != nil {
-		return errors.New("There was an error connecting to the gRPC server: " + err.Error())
-	}
-	return nil
-}
-
 func ConnectToGrpcServer(config configuration_loader.InitialConfiguration) (client messages_protocol.RPIHomeServerServiceClient, connection *grpc.ClientConn, err error) {
 	connection, err = grpc.Dial(config.GRPCServerIp, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(time.Second))
 	if err == nil {
