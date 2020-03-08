@@ -13,8 +13,8 @@ import (
 	"google.golang.org/grpc"
 )
 
-const timeBetweenReconnectionAttempts time.Duration = 10 * time.Second
-const numberOfReconnectingAttemptsUntilShutdown int = 30
+const timeBetweenReconnectionAttempts time.Duration = 2 * time.Second
+const numberOfReconnectingAttemptsUntilShutdown int = 2
 
 func connectToGrpcServer(config configuration_loader.InitialConfiguration) (client messages_protocol.RPIHomeServerServiceClient, connection *grpc.ClientConn, err error) {
 	client, connection, err = grpc_client.ConnectToGrpcServer(config)
@@ -55,14 +55,17 @@ func SetupAndRun(config configuration_loader.InitialConfiguration, exitChannel c
 }
 
 func run(exitChannel chan bool, client messages_protocol.RPIHomeServerServiceClient, connection *grpc.ClientConn) {
-	var grpcClientExitChannel chan bool
+	grpcClientExitChannel := make(chan bool)
 	go runGRPCClientLoop(grpcClientExitChannel, client, connection)
 	<-exitChannel
+	fmt.Println("Exit signal received in RPI client")
 	grpcClientExitChannel <- true
+	exitChannel <- true
 	gpio_manager.ClearAllPins()
 }
 
 func runGRPCClientLoop(grpcClientExitChannel chan bool, client messages_protocol.RPIHomeServerServiceClient, connection *grpc.ClientConn) {
+	defer connection.Close()
 	for {
 		select {
 		case <-grpcClientExitChannel:
@@ -80,30 +83,27 @@ func runGRPCClientLoop(grpcClientExitChannel chan bool, client messages_protocol
 				time.Sleep(1 * time.Second)
 				attempts := 0
 				for err != nil {
-					if attempts < numberOfReconnectingAttemptsUntilShutdown {
-						var programmedActions []types.ProgrammedAction
-						// TODO: add programmed actions from message_generator
-						err = grpc_client.RegisterPinsToGRPCServer(client, configuration_loader.InitialConfiguration{}, programmedActions)
-						if err != nil {
-							select {
-							case <-grpcClientExitChannel:
-								fmt.Println("Exit signal received in gRPC client")
-								grpcClientExitChannel <- true
-								return
-							case <-time.After(timeBetweenReconnectionAttempts):
+					select {
+					case <-grpcClientExitChannel:
+						fmt.Println("Exit signal received in gRPC client")
+						return
+					default:
+						if attempts < numberOfReconnectingAttemptsUntilShutdown {
+							var programmedActions []types.ProgrammedAction
+							// TODO: add programmed actions from message_generator
+							err = grpc_client.RegisterPinsToGRPCServer(client, configuration_loader.InitialConfiguration{}, programmedActions)
+							if err != nil {
 								fmt.Println("There was an error connecting to the gRPC server: " + err.Error())
 								fmt.Println("Trying again in " + timeBetweenReconnectionAttempts.String() + "...")
 								attempts += 1
+							} else {
+								fmt.Println("Reconnected!")
 							}
 						} else {
-							fmt.Println("Reconnected!")
-							break
+							fmt.Println("Could not reconnect to the server, closing the application...")
+							time.Sleep(time.Second * 1)
+							return
 						}
-					} else {
-						fmt.Println("Could not reconnect to the server, closing the application...")
-						grpcClientExitChannel <- true
-						time.Sleep(time.Second * 1)
-						break
 					}
 				}
 			} else {
@@ -113,5 +113,4 @@ func runGRPCClientLoop(grpcClientExitChannel chan bool, client messages_protocol
 			}
 		}
 	}
-	connection.Close()
 }

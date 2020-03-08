@@ -47,14 +47,16 @@ func main() {
 	// RPI client (gRPC, message_generator and GPIO manager)
 	exitChannels = append(exitChannels, make(chan bool))
 	err = rpi_client.SetupAndRun(config, exitChannels[len(exitChannels)-1])
+	if err != nil {
+		fmt.Println("RPI client configuration failed: %s", err.Error())
+		exitChannels = exitChannels[:len(exitChannels)-1]
+	}
 
 	fmt.Println("Waiting for messages")
 	<-mainExitChannel
 	for index := range exitChannels {
 		exitChannels[len(exitChannels)-1-index] <- true
-	}
-	for _, exitChannel := range exitChannels {
-		<-exitChannel
+		<-exitChannels[len(exitChannels)-1-index]
 	}
 	fmt.Println("Done!")
 }
