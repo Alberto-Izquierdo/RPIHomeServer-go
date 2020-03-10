@@ -48,7 +48,7 @@ func main() {
 	exitChannels = append(exitChannels, make(chan bool))
 	err = rpi_client.SetupAndRun(config, exitChannels[len(exitChannels)-1])
 	if err != nil {
-		fmt.Println("RPI client configuration failed: %s", err.Error())
+		fmt.Println("RPI client configuration failed: " + err.Error())
 		exitChannels = exitChannels[:len(exitChannels)-1]
 	}
 

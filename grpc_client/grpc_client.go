@@ -3,9 +3,11 @@ package grpc_client
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
+	"github.com/Alberto-Izquierdo/RPIHomeServer-go/gpio_manager"
 	messages_protocol "github.com/Alberto-Izquierdo/RPIHomeServer-go/messages"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/types"
 	"github.com/golang/protobuf/ptypes"
@@ -23,6 +25,57 @@ func ConnectToGrpcServer(config configuration_loader.InitialConfiguration) (clie
 		client = messages_protocol.NewRPIHomeServerServiceClient(connection)
 	}
 	return client, connection, err
+}
+
+func Run(grpcClientExitChannel chan bool, client messages_protocol.RPIHomeServerServiceClient, connection *grpc.ClientConn) {
+	defer connection.Close()
+	for {
+		select {
+		case <-grpcClientExitChannel:
+			err := UnregisterPins(client)
+			if err != nil {
+				fmt.Println("There was an error unregistering in gRPC client: ", err.Error())
+			}
+			fmt.Println("Exit signal received in gRPC client")
+			return
+		default:
+			actions, _, err := CheckForActions(client)
+			if err != nil {
+				fmt.Println("There was an error checking actions in gRPC client: ", err.Error())
+				fmt.Println("Trying to reconnect to server...")
+				time.Sleep(1 * time.Second)
+				for err != nil {
+					select {
+					case <-grpcClientExitChannel:
+						fmt.Println("Exit signal received in gRPC client")
+						return
+					default:
+						var programmedActions []types.ProgrammedAction
+						// TODO: add programmed actions from message_generator
+						err = RegisterPinsToGRPCServer(client, configuration_loader.InitialConfiguration{}, programmedActions)
+						if err != nil {
+							fmt.Println("There was an error connecting to the gRPC server: " + err.Error())
+							fmt.Println("Trying again in " + timeBetweenReconnectionAttempts.String() + "...")
+							time.Sleep(timeBetweenReconnectionAttempts)
+						} else {
+							fmt.Println("Reconnected!")
+						}
+					}
+				}
+			} else {
+				for _, action := range actions {
+					success, _ := gpio_manager.HandleAction(action)
+					message := ""
+					if success == true {
+						message = "Action " + action.Pin + " successful"
+					} else {
+						message = "Action " + action.Pin + " not successful"
+					}
+					SendMessageToTelegram(client, types.TelegramMessage{message, action.ChatId})
+				}
+			}
+		}
+	}
 }
 
 func RegisterPinsToGRPCServer(client messages_protocol.RPIHomeServerServiceClient,
