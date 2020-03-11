@@ -6,6 +6,7 @@ import (
 	"time"
 
 	ordered_queue "github.com/Alberto-Izquierdo/GoOrderedQueue"
+	"github.com/Alberto-Izquierdo/RPIHomeServer-go/gpio_manager"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/types"
 )
 
@@ -15,7 +16,7 @@ const (
 	GET_ACTIONS
 )
 
-func Run(actions []types.ProgrammedAction, outputChannel chan types.Action, exitChannel chan bool) error {
+func Run(actions []types.ProgrammedAction, exitChannel chan bool) error {
 	queue := ordered_queue.OrderedQueue{}
 	err := initQueue(actions, &queue)
 	if err != nil {
@@ -39,10 +40,9 @@ func Run(actions []types.ProgrammedAction, outputChannel chan types.Action, exit
 			select {
 			case _ = <-exitChannel:
 				fmt.Println("[message_generator] Exit signal received, exiting...")
-				exitChannel <- true
 				return
 			case <-time.After(t.Sub(now)):
-				handleNextAction(&nextAction, outputChannel, &queue, exitChannel)
+				handleNextAction(&nextAction, &queue, exitChannel)
 			}
 		}
 	}()
@@ -69,9 +69,9 @@ func initQueue(actions []types.ProgrammedAction, queue *ordered_queue.OrderedQue
 	return nil
 }
 
-func handleNextAction(nextAction *types.ProgrammedAction, outputChannel chan types.Action, queue *ordered_queue.OrderedQueue, exitChannel chan bool) {
+func handleNextAction(nextAction *types.ProgrammedAction, queue *ordered_queue.OrderedQueue, exitChannel chan bool) {
 	// Enqueue the action to the gpio manager
-	outputChannel <- nextAction.Action
+	gpio_manager.HandleAction(nextAction.Action)
 	// Push the action again but with the time increased 24 hours
 	if nextAction.Repeat {
 		newTime := time.Now().Add(time.Hour * 24)

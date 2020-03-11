@@ -8,6 +8,7 @@ import (
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/gpio_manager"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/grpc_client"
+	"github.com/Alberto-Izquierdo/RPIHomeServer-go/message_generator"
 	messages_protocol "github.com/Alberto-Izquierdo/RPIHomeServer-go/messages"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/types"
 	"google.golang.org/grpc"
@@ -48,17 +49,20 @@ func SetupAndRun(config configuration_loader.InitialConfiguration, exitChannel c
 		return errors.New("There was an error connecting to the gRPC server: " + err.Error())
 	}
 
-	go run(exitChannel, client, connection)
+	go run(config.AutomaticMessages, exitChannel, client, connection)
 
 	return nil
 }
 
-func run(exitChannel chan bool, client messages_protocol.RPIHomeServerServiceClient, connection *grpc.ClientConn) {
+func run(programmedActions []types.ProgrammedAction, exitChannel chan bool, client messages_protocol.RPIHomeServerServiceClient, connection *grpc.ClientConn) {
+	messageGeneratorExitChannel := make(chan bool)
+	message_generator.Run(programmedActions, messageGeneratorExitChannel)
 	grpcClientExitChannel := make(chan bool)
 	go grpc_client.Run(grpcClientExitChannel, client, connection)
 	<-exitChannel
 	fmt.Println("Exit signal received in RPI client")
 	grpcClientExitChannel <- true
+	messageGeneratorExitChannel <- true
 	exitChannel <- true
 	gpio_manager.ClearAllPins()
 }
