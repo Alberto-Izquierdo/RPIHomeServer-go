@@ -5,6 +5,8 @@ github.com/Alberto-Izquierdo/GoOrderedQueue v0.0.0-20200212185325-1f06f99b4d3c h
 github.com/Alberto-Izquierdo/GoOrderedQueue v0.0.0-20200212185325-1f06f99b4d3c/go.mod h1:+WRGmOrPLCklbB2LjcVC6mP07uPCyBvG/aWKpUkRBKk=
 github.com/Alberto-Izquierdo/GoOrderedQueue v0.0.0-20200212190103-9ab5af3bd592 h1:vujlu3fVl50JRQbEZHWCDLlCRvijF54MOrhTHfn+RRk=
 github.com/Alberto-Izquierdo/GoOrderedQueue v0.0.0-20200212190103-9ab5af3bd592/go.mod h1:+WRGmOrPLCklbB2LjcVC6mP07uPCyBvG/aWKpUkRBKk=
+github.com/Alberto-Izquierdo/GoOrderedQueue v0.0.0-20200308140023-bdd270980eb3 h1:dPnp0j2SS/t2tDGp39SBkCp9kbSMVY3A5hHg1Hb76nc=
+github.com/Alberto-Izquierdo/GoOrderedQueue v0.0.0-20200308140023-bdd270980eb3/go.mod h1:+WRGmOrPLCklbB2LjcVC6mP07uPCyBvG/aWKpUkRBKk=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=

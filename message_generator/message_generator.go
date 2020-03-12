@@ -10,13 +10,7 @@ import (
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/types"
 )
 
-const (
-	CREATE = iota
-	REMOVE
-	GET_ACTIONS
-)
-
-func Run(actions []types.ProgrammedAction, exitChannel chan bool) error {
+func Run(actions []types.ProgrammedAction, inputChannel chan types.ProgrammedActionOperation, outputChannel chan types.TelegramMessage, exitChannel chan bool) error {
 	queue := ordered_queue.OrderedQueue{}
 	err := initQueue(actions, &queue)
 	if err != nil {
@@ -41,6 +35,8 @@ func Run(actions []types.ProgrammedAction, exitChannel chan bool) error {
 			case _ = <-exitChannel:
 				fmt.Println("[message_generator] Exit signal received, exiting...")
 				return
+			case operation := <-inputChannel:
+				outputChannel <- handleOperation(operation, &queue)
 			case <-time.After(t.Sub(now)):
 				handleNextAction(&nextAction, &queue, exitChannel)
 			}
@@ -87,4 +83,24 @@ func handleNextAction(nextAction *types.ProgrammedAction, queue *ordered_queue.O
 			return
 		}
 	}
+}
+
+func handleOperation(operation types.ProgrammedActionOperation, queue *ordered_queue.OrderedQueue) types.TelegramMessage {
+	switch operation.Operation {
+	case types.CREATE:
+		err := queue.Push(operation.ProgrammedAction)
+		if err == nil {
+			return types.TelegramMessage{Message: "Programmed action added", ChatId: operation.ProgrammedAction.Action.ChatId}
+		}
+		return types.TelegramMessage{Message: "Error while trying to add the new programmed action" + err.Error(), ChatId: operation.ProgrammedAction.Action.ChatId}
+	case types.REMOVE:
+		removed, _ := queue.RemoveElement(operation.ProgrammedAction)
+		if removed {
+			return types.TelegramMessage{Message: "Programmed action removed", ChatId: operation.ProgrammedAction.Action.ChatId}
+		}
+		return types.TelegramMessage{Message: "Error while trying to remove the new programmed action", ChatId: operation.ProgrammedAction.Action.ChatId}
+	case types.GET_ACTIONS:
+		// TODO:
+	}
+	return types.TelegramMessage{Message: "Operation not known", ChatId: operation.ProgrammedAction.Action.ChatId}
 }

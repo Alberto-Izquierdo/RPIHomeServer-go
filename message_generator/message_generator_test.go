@@ -18,7 +18,9 @@ func TestActionTwoSecondsDelay(t *testing.T) {
 	gpio_manager.Setup([]types.PairNamePin{types.PairNamePin{Name: "light", Pin: 2}})
 	assert.False(t, gpio_manager.GetPinState("light"))
 	exitChan := make(chan bool)
-	err := Run(programmedActions, exitChan)
+	telegramChannel := make(chan types.TelegramMessage)
+	programmedActionOperationsChannel := make(chan types.ProgrammedActionOperation)
+	err := Run(programmedActions, programmedActionOperationsChannel, telegramChannel, exitChan)
 	require.Nil(t, err)
 	select {
 	case _ = <-exitChan:

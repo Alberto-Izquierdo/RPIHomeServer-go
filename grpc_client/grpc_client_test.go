@@ -115,9 +115,11 @@ func TestRun(t *testing.T) {
 	client, connection, err := ConnectToGrpcServer(clientConfig)
 	assert.Nil(t, err)
 	clientExitChannel := make(chan bool)
+	telegramChannel := make(chan types.TelegramMessage)
+	programmedActionOperationsChannel := make(chan types.ProgrammedActionOperation)
 	go func() {
 		time.Sleep(1 * time.Second)
-		Run(clientExitChannel, client, connection)
+		Run(programmedActionOperationsChannel, telegramChannel, clientExitChannel, client, connection)
 	}()
 	clientExitChannel <- true
 	serverExitChannel <- true

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
-	"github.com/Alberto-Izquierdo/RPIHomeServer-go/message_generator"
 	messages_protocol "github.com/Alberto-Izquierdo/RPIHomeServer-go/messages"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/types"
 	"github.com/stretchr/testify/assert"
@@ -123,7 +122,7 @@ func TestGetProgrammedActions(t *testing.T) {
 				Time:   types.MyTime(time.Now()),
 				Repeat: false,
 			},
-			message_generator.CREATE,
+			types.CREATE,
 		}
 	}()
 	actions, err := server.CheckForActions(ctx, &messages_protocol.Empty{})

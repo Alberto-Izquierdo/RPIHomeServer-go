@@ -27,7 +27,10 @@ func ConnectToGrpcServer(config configuration_loader.InitialConfiguration) (clie
 	return client, connection, err
 }
 
-func Run(grpcClientExitChannel chan bool, client messages_protocol.RPIHomeServerServiceClient, connection *grpc.ClientConn) {
+func Run(programmedActionOperationsChannel chan types.ProgrammedActionOperation,
+	telegramResponsesChannel chan types.TelegramMessage,
+	grpcClientExitChannel chan bool, client messages_protocol.RPIHomeServerServiceClient,
+	connection *grpc.ClientConn) {
 	defer connection.Close()
 	for {
 		select {
@@ -38,8 +41,10 @@ func Run(grpcClientExitChannel chan bool, client messages_protocol.RPIHomeServer
 			}
 			fmt.Println("Exit signal received in gRPC client")
 			return
+		case response := <-telegramResponsesChannel:
+			SendMessageToTelegram(client, response)
 		default:
-			actions, _, err := CheckForActions(client)
+			actions, programmedActionOperations, err := CheckForActions(client)
 			if err != nil {
 				fmt.Println("There was an error checking actions in gRPC client: ", err.Error())
 				fmt.Println("Trying to reconnect to server...")
@@ -72,6 +77,9 @@ func Run(grpcClientExitChannel chan bool, client messages_protocol.RPIHomeServer
 						message = "Action " + action.Pin + " not successful"
 					}
 					SendMessageToTelegram(client, types.TelegramMessage{message, action.ChatId})
+				}
+				for _, programmedActionOperation := range programmedActionOperations {
+					programmedActionOperationsChannel <- programmedActionOperation
 				}
 			}
 		}

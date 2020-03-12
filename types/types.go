@@ -58,3 +58,11 @@ func (a MyTime) Format(s string) string {
 func (this ProgrammedAction) LessThan(other interface{}) bool {
 	return time.Time(this.Time).Before(time.Time(other.(ProgrammedAction).Time))
 }
+
+func (this ProgrammedAction) Equals(other interface{}) bool {
+	otherTime := other.(ProgrammedAction)
+	equal := otherTime.Action.Pin == this.Action.Pin &&
+		otherTime.Action.State == this.Action.State &&
+		otherTime.Time == this.Time
+	return equal
+}
