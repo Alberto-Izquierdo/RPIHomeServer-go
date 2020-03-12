@@ -14,8 +14,7 @@ func Run(actions []types.ProgrammedAction, inputChannel chan types.ProgrammedAct
 	queue := ordered_queue.OrderedQueue{}
 	err := initQueue(actions, &queue)
 	if err != nil {
-		fmt.Println(err.Error())
-		return err
+		fmt.Println("Error while creating the module: " + err.Error())
 	}
 	go func() {
 		for {
@@ -37,6 +36,9 @@ func Run(actions []types.ProgrammedAction, inputChannel chan types.ProgrammedAct
 				return
 			case operation := <-inputChannel:
 				outputChannel <- handleOperation(operation, &queue)
+				if err == nil {
+					queue.Push(nextAction)
+				}
 			case <-time.After(t.Sub(now)):
 				handleNextAction(&nextAction, &queue, exitChannel)
 			}
