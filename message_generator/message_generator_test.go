@@ -86,6 +86,26 @@ func TestCreateProgrammedAction(t *testing.T) {
 		t.Errorf("Something terrible happened")
 	}
 
+	programmedActionOperationsChannel <- types.ProgrammedActionOperation{
+		Operation: types.REMOVE,
+		ProgrammedAction: types.ProgrammedAction{
+			Action: types.Action{
+				Pin:    "light",
+				State:  true,
+				ChatId: 123,
+			},
+			Repeat: true,
+			Time:   actionTime,
+		},
+	}
+	select {
+	case response := <-telegramChannel:
+		assert.NotEqual(t, response.Message, "Programmed action removed")
+		assert.Equal(t, response.ChatId, int64(123))
+	case _ = <-exitChan:
+		t.Errorf("Something terrible happened")
+	}
+
 	exitChan <- true
 	time.Sleep(100 * time.Millisecond)
 }

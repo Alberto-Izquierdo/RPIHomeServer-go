@@ -18,6 +18,7 @@ func Run(actions []types.ProgrammedAction, inputChannel chan types.ProgrammedAct
 	}
 	go func() {
 		for {
+			nextActionValid := true
 			nextElement, err := queue.Pop()
 			now := time.Now()
 			t := now.Add(time.Hour * 10000)
@@ -25,6 +26,7 @@ func Run(actions []types.ProgrammedAction, inputChannel chan types.ProgrammedAct
 
 			if err != nil {
 				fmt.Println("[message_generator]: Error when trying to pop elements from actions queue: ", err.Error(), "")
+				nextActionValid = false
 			} else {
 				nextAction = nextElement.(types.ProgrammedAction)
 				t = time.Time(nextAction.Time)
@@ -35,8 +37,9 @@ func Run(actions []types.ProgrammedAction, inputChannel chan types.ProgrammedAct
 				fmt.Println("[message_generator] Exit signal received, exiting...")
 				return
 			case operation := <-inputChannel:
-				outputChannel <- handleOperation(operation, &queue, nextAction)
-				if err == nil {
+				response, addPreviousAction := handleOperation(operation, &queue, nextAction, nextActionValid)
+				outputChannel <- response
+				if nextActionValid == true && addPreviousAction == true {
 					queue.Push(nextAction)
 				}
 			case <-time.After(t.Sub(now)):
@@ -86,25 +89,32 @@ func handleNextAction(nextAction *types.ProgrammedAction, queue *ordered_queue.O
 	}
 }
 
-func handleOperation(operation types.ProgrammedActionOperation, queue *ordered_queue.OrderedQueue, nextAction types.ProgrammedAction) types.TelegramMessage {
+func handleOperation(operation types.ProgrammedActionOperation, queue *ordered_queue.OrderedQueue, nextAction types.ProgrammedAction, nextActionValid bool) (response types.TelegramMessage, addPreviousAction bool) {
+	addPreviousAction = true
 	switch operation.Operation {
 	case types.CREATE:
 		err := queue.Push(operation.ProgrammedAction)
 		if err == nil {
-			return types.TelegramMessage{Message: "Programmed action added", ChatId: operation.ProgrammedAction.Action.ChatId}
+			response = types.TelegramMessage{Message: "Programmed action added", ChatId: operation.ProgrammedAction.Action.ChatId}
+		} else {
+			response = types.TelegramMessage{Message: "Error while trying to add the new programmed action" + err.Error(), ChatId: operation.ProgrammedAction.Action.ChatId}
 		}
-		return types.TelegramMessage{Message: "Error while trying to add the new programmed action" + err.Error(), ChatId: operation.ProgrammedAction.Action.ChatId}
 	case types.REMOVE:
-		if operation.ProgrammedAction.Equals(nextAction) {
-			return types.TelegramMessage{Message: "Programmed action removed", ChatId: operation.ProgrammedAction.Action.ChatId}
+		if nextActionValid == true && operation.ProgrammedAction.Equals(nextAction) {
+			response = types.TelegramMessage{Message: "Programmed action removed", ChatId: operation.ProgrammedAction.Action.ChatId}
+			addPreviousAction = false
+		} else {
+			removed, err := queue.RemoveElement(operation.ProgrammedAction)
+			if removed {
+				response = types.TelegramMessage{Message: "Programmed action removed", ChatId: operation.ProgrammedAction.Action.ChatId}
+			} else {
+				response = types.TelegramMessage{Message: "Error while trying to remove the new programmed action: " + err.Error(), ChatId: operation.ProgrammedAction.Action.ChatId}
+			}
 		}
-		removed, err := queue.RemoveElement(operation.ProgrammedAction)
-		if removed {
-			return types.TelegramMessage{Message: "Programmed action removed", ChatId: operation.ProgrammedAction.Action.ChatId}
-		}
-		return types.TelegramMessage{Message: "Error while trying to remove the new programmed action: " + err.Error(), ChatId: operation.ProgrammedAction.Action.ChatId}
 	case types.GET_ACTIONS:
 		// TODO:
+	default:
+		response = types.TelegramMessage{Message: "Operation not known", ChatId: operation.ProgrammedAction.Action.ChatId}
 	}
-	return types.TelegramMessage{Message: "Operation not known", ChatId: operation.ProgrammedAction.Action.ChatId}
+	return response, addPreviousAction
 }
