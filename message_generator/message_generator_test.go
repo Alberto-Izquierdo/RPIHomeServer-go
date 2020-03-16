@@ -41,6 +41,7 @@ func TestCreateProgrammedAction(t *testing.T) {
 	programmedActionOperationsChannel := make(chan types.ProgrammedActionOperation)
 	err := Run(programmedActions, programmedActionOperationsChannel, telegramChannel, exitChan)
 	assert.Nil(t, err)
+	actionTime := types.MyTime(time.Now().Add(time.Second * 2))
 	programmedActionOperationsChannel <- types.ProgrammedActionOperation{
 		Operation: types.CREATE,
 		ProgrammedAction: types.ProgrammedAction{
@@ -50,7 +51,7 @@ func TestCreateProgrammedAction(t *testing.T) {
 				ChatId: 123,
 			},
 			Repeat: true,
-			Time:   types.MyTime(time.Now().Add(time.Second * 2)),
+			Time:   actionTime,
 		},
 	}
 	select {
@@ -62,6 +63,29 @@ func TestCreateProgrammedAction(t *testing.T) {
 	}
 	time.Sleep(3 * time.Second)
 	assert.True(t, gpio_manager.GetPinState("light"))
+
+	actionTime = types.MyTime(time.Time(actionTime).Add(time.Hour * 24))
+
+	programmedActionOperationsChannel <- types.ProgrammedActionOperation{
+		Operation: types.REMOVE,
+		ProgrammedAction: types.ProgrammedAction{
+			Action: types.Action{
+				Pin:    "light",
+				State:  true,
+				ChatId: 123,
+			},
+			Repeat: true,
+			Time:   actionTime,
+		},
+	}
+	select {
+	case response := <-telegramChannel:
+		assert.Equal(t, response.Message, "Programmed action removed")
+		assert.Equal(t, response.ChatId, int64(123))
+	case _ = <-exitChan:
+		t.Errorf("Something terrible happened")
+	}
+
 	exitChan <- true
 	time.Sleep(100 * time.Millisecond)
 }

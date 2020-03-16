@@ -35,7 +35,7 @@ func Run(actions []types.ProgrammedAction, inputChannel chan types.ProgrammedAct
 				fmt.Println("[message_generator] Exit signal received, exiting...")
 				return
 			case operation := <-inputChannel:
-				outputChannel <- handleOperation(operation, &queue)
+				outputChannel <- handleOperation(operation, &queue, nextAction)
 				if err == nil {
 					queue.Push(nextAction)
 				}
@@ -71,12 +71,11 @@ func handleNextAction(nextAction *types.ProgrammedAction, queue *ordered_queue.O
 	// Enqueue the action to the gpio manager
 	gpio_manager.HandleAction(nextAction.Action)
 	// Push the action again but with the time increased 24 hours
-	if nextAction.Repeat {
-		newTime := time.Now().Add(time.Hour * 24)
+	if nextAction.Repeat == true {
 		newAction := types.ProgrammedAction{
 			Action: nextAction.Action,
 			Repeat: true,
-			Time:   types.MyTime(newTime),
+			Time:   types.MyTime(time.Time(nextAction.Time).Add(time.Hour * 24)),
 		}
 		err := queue.Push(newAction)
 		if err != nil {
@@ -87,7 +86,7 @@ func handleNextAction(nextAction *types.ProgrammedAction, queue *ordered_queue.O
 	}
 }
 
-func handleOperation(operation types.ProgrammedActionOperation, queue *ordered_queue.OrderedQueue) types.TelegramMessage {
+func handleOperation(operation types.ProgrammedActionOperation, queue *ordered_queue.OrderedQueue, nextAction types.ProgrammedAction) types.TelegramMessage {
 	switch operation.Operation {
 	case types.CREATE:
 		err := queue.Push(operation.ProgrammedAction)
@@ -96,11 +95,14 @@ func handleOperation(operation types.ProgrammedActionOperation, queue *ordered_q
 		}
 		return types.TelegramMessage{Message: "Error while trying to add the new programmed action" + err.Error(), ChatId: operation.ProgrammedAction.Action.ChatId}
 	case types.REMOVE:
-		removed, _ := queue.RemoveElement(operation.ProgrammedAction)
+		if operation.ProgrammedAction.Equals(nextAction) {
+			return types.TelegramMessage{Message: "Programmed action removed", ChatId: operation.ProgrammedAction.Action.ChatId}
+		}
+		removed, err := queue.RemoveElement(operation.ProgrammedAction)
 		if removed {
 			return types.TelegramMessage{Message: "Programmed action removed", ChatId: operation.ProgrammedAction.Action.ChatId}
 		}
-		return types.TelegramMessage{Message: "Error while trying to remove the new programmed action", ChatId: operation.ProgrammedAction.Action.ChatId}
+		return types.TelegramMessage{Message: "Error while trying to remove the new programmed action: " + err.Error(), ChatId: operation.ProgrammedAction.Action.ChatId}
 	case types.GET_ACTIONS:
 		// TODO:
 	}
