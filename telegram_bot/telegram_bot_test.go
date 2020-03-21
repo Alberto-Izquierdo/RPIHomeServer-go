@@ -19,7 +19,7 @@ func TestWrongConfig(t *testing.T) {
 	config.ServerConfiguration = &serverConfig
 	config.ServerConfiguration.TelegramBotToken = "asdf"
 	config.ServerConfiguration.TelegramAuthorizedUsers = append(config.ServerConfiguration.TelegramAuthorizedUsers, 1234, 5678)
-	err := LaunchTelegramBot(config, telegramOutputChannel, telegramInputChannel, telegramExitChannel)
+	err := LaunchTelegramBot(config, telegramOutputChannel, nil, telegramInputChannel, telegramExitChannel)
 	assert.NotEqual(t, err, nil, "Wrong config should return an error")
 }
 
@@ -39,7 +39,7 @@ func TestLaunchTelegramBot(t *testing.T) {
 		<-telegramExitChannel
 		close(telegramExitChannel)
 	}()
-	LaunchTelegramBot(config, telegramOutputChannel, telegramInputChannel, telegramExitChannel)
+	LaunchTelegramBot(config, telegramOutputChannel, nil, telegramInputChannel, telegramExitChannel)
 }
 
 func TestGetMessagesAvailableMarkup(t *testing.T) {

@@ -127,9 +127,6 @@ func CheckForActions(client messages_protocol.RPIHomeServerServiceClient) ([]typ
 		if err != nil {
 			continue
 		}
-		for timestamp.Before(time.Now()) {
-			timestamp = timestamp.Add(time.Hour * 24)
-		}
 		action := types.ProgrammedActionOperation{
 			Operation: programmedAction.Operation,
 			ProgrammedAction: types.ProgrammedAction{

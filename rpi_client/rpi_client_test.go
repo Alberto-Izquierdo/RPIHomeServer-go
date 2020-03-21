@@ -17,7 +17,7 @@ func createServer(t *testing.T) (chan bool, chan types.Action, chan types.Telegr
 	serverExitChannel := make(chan bool)
 	outputChannel := make(chan types.Action)
 	responsesChannel := make(chan types.TelegramMessage)
-	err := grpc_server.SetupAndRun(serverConfig, outputChannel, responsesChannel, nil, serverExitChannel)
+	err := grpc_server.SetupAndRun(serverConfig, outputChannel, nil, responsesChannel, serverExitChannel)
 	assert.Nil(t, err)
 	return serverExitChannel, outputChannel, responsesChannel
 }

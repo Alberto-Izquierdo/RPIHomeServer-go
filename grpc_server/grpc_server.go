@@ -19,7 +19,7 @@ import (
 
 const timeWaitingForNewActions time.Duration = 2 * time.Second
 
-func SetupAndRun(config configuration_loader.InitialConfiguration, inputChannel chan types.Action, responsesChannel chan types.TelegramMessage, programmedActionsChannel chan types.ProgrammedActionOperation, exitChannel chan bool) error {
+func SetupAndRun(config configuration_loader.InitialConfiguration, inputChannel chan types.Action, programmedActionsChannel chan types.ProgrammedActionOperation, responsesChannel chan types.TelegramMessage, exitChannel chan bool) error {
 	if config.ServerConfiguration == nil {
 		return errors.New("Server parameters not set in the configuration file")
 	}
@@ -76,7 +76,6 @@ func run(server *grpc.Server, rpiServer *rpiHomeServer, listener *net.Listener, 
 				responsesChannel <- types.TelegramMessage{err.Error(), action.ProgrammedAction.Action.ChatId}
 			} else {
 				rpiServer.programmedActions[client] <- action
-				//responsesChannel <- types.TelegramMessage{"Action received!", action.ProgrammedAction.Action.ChatId}
 			}
 			rpiServer.mutex.Unlock()
 		}

@@ -91,6 +91,9 @@ func handleNextAction(nextAction *types.ProgrammedAction, queue *ordered_queue.O
 
 func handleOperation(operation types.ProgrammedActionOperation, queue *ordered_queue.OrderedQueue, nextAction types.ProgrammedAction, nextActionValid bool) (response types.TelegramMessage, addPreviousAction bool) {
 	addPreviousAction = true
+	for time.Time(operation.ProgrammedAction.Time).Before(time.Now()) {
+		operation.ProgrammedAction.Time = types.MyTime(time.Time(operation.ProgrammedAction.Time).Add(24 * time.Hour))
+	}
 	switch operation.Operation {
 	case types.CREATE:
 		err := queue.Push(operation.ProgrammedAction)

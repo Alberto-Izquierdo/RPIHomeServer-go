@@ -12,7 +12,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-func LaunchTelegramBot(config configuration_loader.InitialConfiguration, outputChannel chan types.Action, inputChannel chan types.TelegramMessage, exitChannel chan bool) error {
+func LaunchTelegramBot(config configuration_loader.InitialConfiguration, outputChannel chan types.Action, programmedActionOperationsChannel chan types.ProgrammedActionOperation, inputChannel chan types.TelegramMessage, exitChannel chan bool) error {
 	bot, err := tgbotapi.NewBotAPI(config.ServerConfiguration.TelegramBotToken)
 	if err != nil {
 		return err
@@ -28,6 +28,8 @@ func LaunchTelegramBot(config configuration_loader.InitialConfiguration, outputC
 
 	go func(updatesChannel tgbotapi.UpdatesChannel) {
 		for {
+			createProgrammedActionRegex := regexp.MustCompile("^CreateProgrammedAction (.*)$")
+			removeProgrammedActionRegex := regexp.MustCompile("^RemoveProgrammedAction (.*)$")
 			select {
 			case _ = <-exitChannel:
 				fmt.Println("Exit signal received in telegram bot")
@@ -57,16 +59,28 @@ func LaunchTelegramBot(config configuration_loader.InitialConfiguration, outputC
 							}
 						}()
 					} else if matched, err = regexp.Match("On$", []byte(possibleAction)); err == nil && matched {
-						go func() {
-							turnPinOn(update.Message.Text, config, update.Message.Chat.ID, update.Message.MessageID, outputChannel)
-						}()
+						go turnPinOn(update.Message.Text, config, update.Message.Chat.ID, update.Message.MessageID, outputChannel)
 					} else if matched, err = regexp.Match("Off$", []byte(possibleAction)); err == nil && matched {
+						go turnPinOff(update.Message.Text, config, update.Message.Chat.ID, update.Message.MessageID, outputChannel)
+					} else if matchedGroups := createProgrammedActionRegex.FindStringSubmatch(update.Message.Text); len(matchedGroups) > 1 {
 						go func() {
-							turnPinOff(update.Message.Text, config, update.Message.Chat.ID, update.Message.MessageID, outputChannel)
+							msg := createProgrammedAction(matchedGroups[1], update.Message.Chat.ID, programmedActionOperationsChannel)
+							if msg != nil {
+								bot.Send(msg)
+							}
 						}()
+					} else if matchedGroups := removeProgrammedActionRegex.FindStringSubmatch(update.Message.Text); len(matchedGroups) > 1 {
+						go func() {
+							msg := removeProgrammedAction(matchedGroups[1], update.Message.Chat.ID, programmedActionOperationsChannel)
+							if msg != nil {
+								bot.Send(msg)
+							}
+						}()
+					} else if matched, err = regexp.Match("^GetProgrammedActions$", []byte(possibleAction)); err == nil && matched {
+						// TODO: return programmed actions and keyboard to remove them/go back
 					} else {
-						msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Message was not correct")
-						bot.Send(msg)
+						bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Message was not correct"))
+						fmt.Println("Wrong message: " + possibleAction)
 					}
 				} else {
 					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "User not authorized :(")
@@ -100,6 +114,26 @@ func turnPinOff(message string, config configuration_loader.InitialConfiguration
 	firstPart := strings.Fields(message)[0]
 	pin := firstPart[:len(firstPart)-3]
 	outputChannel <- types.Action{pin, false, chatId}
+	return nil
+}
+
+func removeProgrammedAction(message string, chatId int64, outputChannel chan types.ProgrammedActionOperation) *tgbotapi.MessageConfig {
+	programmedAction, err := types.ProgrammedActionFromString(message, chatId)
+	if err != nil {
+		msg := buildMessage("Programmed action not well defined: "+err.Error(), chatId, -1)
+		return &msg
+	}
+	outputChannel <- types.ProgrammedActionOperation{ProgrammedAction: *programmedAction, Operation: types.REMOVE}
+	return nil
+}
+
+func createProgrammedAction(message string, chatId int64, outputChannel chan types.ProgrammedActionOperation) *tgbotapi.MessageConfig {
+	programmedAction, err := types.ProgrammedActionFromString(message, chatId)
+	if err != nil {
+		msg := buildMessage("Programmed action not well defined: "+err.Error(), chatId, -1)
+		return &msg
+	}
+	outputChannel <- types.ProgrammedActionOperation{ProgrammedAction: *programmedAction, Operation: types.CREATE}
 	return nil
 }
 
