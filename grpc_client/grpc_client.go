@@ -29,8 +29,9 @@ func ConnectToGrpcServer(config configuration_loader.InitialConfiguration) (clie
 func Run(programmedActionOperationsChannel chan types.ProgrammedActionOperation,
 	telegramResponsesChannel chan types.TelegramMessage,
 	grpcClientExitChannel chan bool, client messages_protocol.RPIHomeServerServiceClient,
-	connection *grpc.ClientConn) {
+	connection *grpc.ClientConn, config configuration_loader.InitialConfiguration) {
 	defer connection.Close()
+	cachedProgrammedActions := config.AutomaticMessages
 	for {
 		select {
 		case <-grpcClientExitChannel:
@@ -54,8 +55,7 @@ func Run(programmedActionOperationsChannel chan types.ProgrammedActionOperation,
 						fmt.Println("Exit signal received in gRPC client")
 						return
 					default:
-						var programmedActions []types.ProgrammedAction
-						err = RegisterPinsToGRPCServer(client, configuration_loader.InitialConfiguration{}, programmedActions)
+						err = RegisterPinsToGRPCServer(client, config, cachedProgrammedActions)
 						if err != nil {
 							fmt.Println("There was an error connecting to the gRPC server: " + err.Error())
 							fmt.Println("Trying again in " + timeBetweenReconnectionAttempts.String() + "...")
@@ -78,6 +78,27 @@ func Run(programmedActionOperationsChannel chan types.ProgrammedActionOperation,
 				}
 				for _, programmedActionOperation := range programmedActionOperations {
 					programmedActionOperationsChannel <- programmedActionOperation
+					// Update the cache
+					operation := programmedActionOperation.Operation
+					if operation != types.GET_ACTIONS {
+						found := -1
+						for index, v := range cachedProgrammedActions {
+							if v.Equals(programmedActionOperation.ProgrammedAction) {
+								found = index
+								break
+							}
+						}
+						if operation == types.CREATE {
+							if found == -1 {
+								cachedProgrammedActions = append(cachedProgrammedActions, programmedActionOperation.ProgrammedAction)
+							}
+						} else if operation == types.REMOVE {
+							if found != -1 {
+								(cachedProgrammedActions)[found] = (cachedProgrammedActions)[len(cachedProgrammedActions)-1]
+								cachedProgrammedActions = (cachedProgrammedActions)[:len(cachedProgrammedActions)-1]
+							}
+						}
+					}
 				}
 			}
 		}

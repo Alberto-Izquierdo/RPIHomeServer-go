@@ -41,18 +41,18 @@ func SetupAndRun(config configuration_loader.InitialConfiguration, exitChannel c
 		return errors.New("There was an error connecting to the gRPC server: " + err.Error())
 	}
 
-	go run(config.AutomaticMessages, exitChannel, client, connection)
+	go run(exitChannel, client, connection, config)
 
 	return nil
 }
 
-func run(programmedActions []types.ProgrammedAction, exitChannel chan bool, client messages_protocol.RPIHomeServerServiceClient, connection *grpc.ClientConn) {
+func run(exitChannel chan bool, client messages_protocol.RPIHomeServerServiceClient, connection *grpc.ClientConn, config configuration_loader.InitialConfiguration) {
 	telegramResponsesChannel := make(chan types.TelegramMessage)
 	programmedActionOperationsChannel := make(chan types.ProgrammedActionOperation)
 	messageGeneratorExitChannel := make(chan bool)
-	message_generator.Run(programmedActions, programmedActionOperationsChannel, telegramResponsesChannel, messageGeneratorExitChannel)
+	message_generator.Run(config.AutomaticMessages, programmedActionOperationsChannel, telegramResponsesChannel, messageGeneratorExitChannel)
 	grpcClientExitChannel := make(chan bool)
-	go grpc_client.Run(programmedActionOperationsChannel, telegramResponsesChannel, grpcClientExitChannel, client, connection)
+	go grpc_client.Run(programmedActionOperationsChannel, telegramResponsesChannel, grpcClientExitChannel, client, connection, config)
 	<-exitChannel
 	fmt.Println("Exit signal received in RPI client")
 	grpcClientExitChannel <- true

@@ -222,6 +222,10 @@ func (s *rpiHomeServer) RegisterToServer(ctx context.Context, message *messages_
 		s.programmedActions[p.Addr] = make(chan types.ProgrammedActionOperation)
 		code := messages_protocol.RegistrationStatusCodes_Ok
 		result.Result = code
+		fmt.Println("Client registered: " + p.Addr.String())
+		for _, v := range message.PinsToHandle {
+			fmt.Println("Pin: " + v)
+		}
 	} else {
 		code := messages_protocol.RegistrationStatusCodes_PinNameAlreadyRegistered
 		result.Result = code
@@ -245,6 +249,7 @@ func (s *rpiHomeServer) removeClient(client net.Addr) {
 	delete(s.clientsRegistered, client)
 	delete(s.actionsToPerform, client)
 	delete(s.programmedActions, client)
+	fmt.Println("Client removed: " + client.String())
 }
 
 func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_protocol.Empty) (*messages_protocol.ActionsToPerform, error) {
