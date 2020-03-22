@@ -19,7 +19,7 @@ func TestWrongConfig(t *testing.T) {
 	config.ServerConfiguration = &serverConfig
 	config.ServerConfiguration.TelegramBotToken = "asdf"
 	config.ServerConfiguration.TelegramAuthorizedUsers = append(config.ServerConfiguration.TelegramAuthorizedUsers, 1234, 5678)
-	err := LaunchTelegramBot(config, telegramOutputChannel, telegramInputChannel, telegramExitChannel)
+	err := LaunchTelegramBot(config, telegramOutputChannel, nil, telegramInputChannel, telegramExitChannel)
 	assert.NotEqual(t, err, nil, "Wrong config should return an error")
 }
 
@@ -39,7 +39,7 @@ func TestLaunchTelegramBot(t *testing.T) {
 		<-telegramExitChannel
 		close(telegramExitChannel)
 	}()
-	LaunchTelegramBot(config, telegramOutputChannel, telegramInputChannel, telegramExitChannel)
+	LaunchTelegramBot(config, telegramOutputChannel, nil, telegramInputChannel, telegramExitChannel)
 }
 
 func TestGetMessagesAvailableMarkup(t *testing.T) {
@@ -47,17 +47,18 @@ func TestGetMessagesAvailableMarkup(t *testing.T) {
 	msg := createMarkupForMessages(messages, 0)
 	markup, ok := msg.ReplyMarkup.(tgbotapi.ReplyKeyboardMarkup)
 	assert.True(t, ok, "Error getting the message's reply markup")
-	assert.Equal(t, len(markup.Keyboard), 3, "The message should contain three rows (/start, light and water)")
+	assert.Equal(t, len(markup.Keyboard), 4, "The message should contain three rows (/start, light and water)")
 	assert.Equal(t, len(markup.Keyboard[0]), 1, "The message should contain one column (/start)")
 	assert.Equal(t, markup.Keyboard[0][0].Text, "/start", "Button should contain \"/start\" and it is \"%s\"", markup.Keyboard[0][0].Text)
-	assert.Equal(t, len(markup.Keyboard[1]), 3, "The message should contain three columns (on, off, onAndOff)")
-	assert.Equal(t, markup.Keyboard[1][0].Text, "LightOn", "Button should contain \"LightOn\" and it is \"%s\"", markup.Keyboard[1][0].Text)
-	assert.Equal(t, markup.Keyboard[1][1].Text, "LightOff", "Button should contain \"LightOff\" and it is \"%s\"", markup.Keyboard[1][1].Text)
-	assert.Equal(t, markup.Keyboard[1][2].Text, "LightOnAndOff 2s", "Button should contain \"LightOnAndOff 2s\" and it is \"%s\"", markup.Keyboard[1][2].Text)
+	assert.Equal(t, markup.Keyboard[1][0].Text, "GetProgrammedActions", "Button should contain \"GetProgrammedActions\" and it is \"%s\"", markup.Keyboard[0][0].Text)
 	assert.Equal(t, len(markup.Keyboard[2]), 3, "The message should contain three columns (on, off, onAndOff)")
-	assert.Equal(t, markup.Keyboard[2][0].Text, "WaterOn", "Button should contain \"WaterOn\" and it is \"%s\"", markup.Keyboard[2][0].Text)
-	assert.Equal(t, markup.Keyboard[2][1].Text, "WaterOff", "Button should contain \"WaterOff\" and it is \"%s\"", markup.Keyboard[2][1].Text)
-	assert.Equal(t, markup.Keyboard[2][2].Text, "WaterOnAndOff 2s", "Button should contain \"WaterOnAndOff 2s\" and it is \"%s\"", markup.Keyboard[2][2].Text)
+	assert.Equal(t, markup.Keyboard[2][0].Text, "LightOn", "Button should contain \"LightOn\" and it is \"%s\"", markup.Keyboard[2][0].Text)
+	assert.Equal(t, markup.Keyboard[2][1].Text, "LightOff", "Button should contain \"LightOff\" and it is \"%s\"", markup.Keyboard[2][1].Text)
+	assert.Equal(t, markup.Keyboard[2][2].Text, "LightOnAndOff 2s", "Button should contain \"LightOnAndOff 2s\" and it is \"%s\"", markup.Keyboard[2][2].Text)
+	assert.Equal(t, len(markup.Keyboard[3]), 3, "The message should contain three columns (on, off, onAndOff)")
+	assert.Equal(t, markup.Keyboard[3][0].Text, "WaterOn", "Button should contain \"WaterOn\" and it is \"%s\"", markup.Keyboard[3][0].Text)
+	assert.Equal(t, markup.Keyboard[3][1].Text, "WaterOff", "Button should contain \"WaterOff\" and it is \"%s\"", markup.Keyboard[3][1].Text)
+	assert.Equal(t, markup.Keyboard[3][2].Text, "WaterOnAndOff 2s", "Button should contain \"WaterOnAndOff 2s\" and it is \"%s\"", markup.Keyboard[3][2].Text)
 }
 
 func TestTurnPinOn(t *testing.T) {

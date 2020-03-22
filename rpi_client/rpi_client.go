@@ -8,6 +8,7 @@ import (
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/gpio_manager"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/grpc_client"
+	"github.com/Alberto-Izquierdo/RPIHomeServer-go/message_generator"
 	messages_protocol "github.com/Alberto-Izquierdo/RPIHomeServer-go/messages"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/types"
 	"google.golang.org/grpc"
@@ -35,81 +36,27 @@ func SetupAndRun(config configuration_loader.InitialConfiguration, exitChannel c
 	if err != nil {
 		return err
 	}
-	var programmedActions []types.ProgrammedAction
-	for _, programmedMessage := range config.AutomaticMessages {
-		programmedActions = append(programmedActions, types.ProgrammedAction{
-			Action: programmedMessage.Action,
-			Repeat: programmedMessage.Repeat,
-			Time:   programmedMessage.Time,
-		})
-	}
-	err = grpc_client.RegisterPinsToGRPCServer(client, config, programmedActions)
+	err = grpc_client.RegisterPinsToGRPCServer(client, config, config.AutomaticMessages)
 	if err != nil {
 		return errors.New("There was an error connecting to the gRPC server: " + err.Error())
 	}
 
-	go run(exitChannel, client, connection)
+	go run(exitChannel, client, connection, config)
 
 	return nil
 }
 
-func run(exitChannel chan bool, client messages_protocol.RPIHomeServerServiceClient, connection *grpc.ClientConn) {
+func run(exitChannel chan bool, client messages_protocol.RPIHomeServerServiceClient, connection *grpc.ClientConn, config configuration_loader.InitialConfiguration) {
+	telegramResponsesChannel := make(chan types.TelegramMessage)
+	programmedActionOperationsChannel := make(chan types.ProgrammedActionOperation)
+	messageGeneratorExitChannel := make(chan bool)
+	message_generator.Run(config.AutomaticMessages, programmedActionOperationsChannel, telegramResponsesChannel, messageGeneratorExitChannel)
 	grpcClientExitChannel := make(chan bool)
-	go runGRPCClientLoop(grpcClientExitChannel, client, connection)
+	go grpc_client.Run(programmedActionOperationsChannel, telegramResponsesChannel, grpcClientExitChannel, client, connection, config)
 	<-exitChannel
 	fmt.Println("Exit signal received in RPI client")
 	grpcClientExitChannel <- true
+	messageGeneratorExitChannel <- true
 	exitChannel <- true
 	gpio_manager.ClearAllPins()
-}
-
-func runGRPCClientLoop(grpcClientExitChannel chan bool, client messages_protocol.RPIHomeServerServiceClient, connection *grpc.ClientConn) {
-	defer connection.Close()
-	for {
-		select {
-		case <-grpcClientExitChannel:
-			err := grpc_client.UnregisterPins(client)
-			if err != nil {
-				fmt.Println("There was an error unregistering in gRPC client: ", err.Error())
-			}
-			fmt.Println("Exit signal received in gRPC client")
-			return
-		default:
-			actions, _, err := grpc_client.CheckForActions(client)
-			if err != nil {
-				fmt.Println("There was an error checking actions in gRPC client: ", err.Error())
-				fmt.Println("Trying to reconnect to server...")
-				time.Sleep(1 * time.Second)
-				for err != nil {
-					select {
-					case <-grpcClientExitChannel:
-						fmt.Println("Exit signal received in gRPC client")
-						return
-					default:
-						var programmedActions []types.ProgrammedAction
-						// TODO: add programmed actions from message_generator
-						err = grpc_client.RegisterPinsToGRPCServer(client, configuration_loader.InitialConfiguration{}, programmedActions)
-						if err != nil {
-							fmt.Println("There was an error connecting to the gRPC server: " + err.Error())
-							fmt.Println("Trying again in " + timeBetweenReconnectionAttempts.String() + "...")
-							time.Sleep(timeBetweenReconnectionAttempts)
-						} else {
-							fmt.Println("Reconnected!")
-						}
-					}
-				}
-			} else {
-				for _, action := range actions {
-					success, _ := gpio_manager.HandleAction(action)
-					message := ""
-					if success == true {
-						message = "Action " + action.Pin + " successful"
-					} else {
-						message = "Action " + action.Pin + " not successful"
-					}
-					grpc_client.SendMessageToTelegram(client, types.TelegramMessage{message, action.ChatId})
-				}
-			}
-		}
-	}
 }

@@ -3,6 +3,7 @@ package gpio_manager
 import (
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/types"
 	"github.com/stianeikeland/go-rpio"
@@ -16,9 +17,11 @@ func Setup(pins []types.PairNamePin) (err error) {
 		return err
 	}
 	manager.PinStates = make(map[string]*pinState)
+	manager.mutex.Lock()
 	for _, pinName := range pins {
 		if pinName.Name == "GetPinsAvailable" {
 			err = errors.New("Pin's name should not be \"GetPinsAvailable\", change it in the configuration")
+			manager.mutex.Unlock()
 			ClearAllPins()
 			return err
 		}
@@ -27,6 +30,7 @@ func Setup(pins []types.PairNamePin) (err error) {
 		manager.PinStates[pinName.Name].pin = pinName.Pin
 	}
 	manager.gpioAvailable = true
+	manager.mutex.Unlock()
 	if err := rpio.Open(); err != nil {
 		manager.gpioAvailable = false
 		manager.clearAllPins()
@@ -57,6 +61,8 @@ func TurnPinOff(pin string) (bool, error) {
 }
 
 func ClearAllPins() {
+	manager.mutex.Lock()
+	defer manager.mutex.Unlock()
 	manager.clearAllPins()
 	if manager.gpioAvailable {
 		rpio.Close()
@@ -78,9 +84,12 @@ type pinState struct {
 type gpioManager struct {
 	PinStates     map[string]*pinState
 	gpioAvailable bool
+	mutex         sync.Mutex
 }
 
 func (m *gpioManager) turnPinOn(pin string) (stateChanged bool, err error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	err = nil
 	stateChanged = false
 	if v, ok := m.PinStates[pin]; !ok {
@@ -99,6 +108,8 @@ func (m *gpioManager) turnPinOn(pin string) (stateChanged bool, err error) {
 }
 
 func (m *gpioManager) turnPinOff(pin string) (stateChanged bool, err error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	if v, ok := m.PinStates[pin]; !ok {
 		err = errors.New("[gpio_manager]: Pin " + pin + " not set in the initial configuration")
 	} else if v.state {
@@ -122,7 +133,9 @@ func (m *gpioManager) clearAllPins() {
 	}
 }
 
-func (m gpioManager) getPinState(pin string) bool {
+func (m *gpioManager) getPinState(pin string) bool {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	if v, ok := m.PinStates[pin]; ok {
 		return v.state
 	}
@@ -131,6 +144,8 @@ func (m gpioManager) getPinState(pin string) bool {
 
 func GetPinsAvailable() []string {
 	pins := make([]string, 0)
+	manager.mutex.Lock()
+	defer manager.mutex.Unlock()
 	for k, _ := range manager.PinStates {
 		pins = append(pins, k)
 	}

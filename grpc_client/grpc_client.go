@@ -3,12 +3,13 @@ package grpc_client
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
+	"github.com/Alberto-Izquierdo/RPIHomeServer-go/gpio_manager"
 	messages_protocol "github.com/Alberto-Izquierdo/RPIHomeServer-go/messages"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/types"
-	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc"
 )
 
@@ -25,6 +26,85 @@ func ConnectToGrpcServer(config configuration_loader.InitialConfiguration) (clie
 	return client, connection, err
 }
 
+func Run(programmedActionOperationsChannel chan types.ProgrammedActionOperation,
+	telegramResponsesChannel chan types.TelegramMessage,
+	grpcClientExitChannel chan bool, client messages_protocol.RPIHomeServerServiceClient,
+	connection *grpc.ClientConn, config configuration_loader.InitialConfiguration) {
+	defer connection.Close()
+	cachedProgrammedActions := config.AutomaticMessages
+	for {
+		select {
+		case <-grpcClientExitChannel:
+			err := UnregisterPins(client)
+			if err != nil {
+				fmt.Println("There was an error unregistering in gRPC client: ", err.Error())
+			}
+			fmt.Println("Exit signal received in gRPC client")
+			return
+		case response := <-telegramResponsesChannel:
+			SendMessageToTelegram(client, response)
+		default:
+			actions, programmedActionOperations, err := CheckForActions(client)
+			if err != nil {
+				fmt.Println("There was an error checking actions in gRPC client: ", err.Error())
+				fmt.Println("Trying to reconnect to server...")
+				time.Sleep(1 * time.Second)
+				for err != nil {
+					select {
+					case <-grpcClientExitChannel:
+						fmt.Println("Exit signal received in gRPC client")
+						return
+					default:
+						err = RegisterPinsToGRPCServer(client, config, cachedProgrammedActions)
+						if err != nil {
+							fmt.Println("There was an error connecting to the gRPC server: " + err.Error())
+							fmt.Println("Trying again in " + timeBetweenReconnectionAttempts.String() + "...")
+							time.Sleep(timeBetweenReconnectionAttempts)
+						} else {
+							fmt.Println("Reconnected!")
+						}
+					}
+				}
+			} else {
+				for _, action := range actions {
+					success, _ := gpio_manager.HandleAction(action)
+					message := ""
+					if success == true {
+						message = "Action " + action.Pin + " successful"
+					} else {
+						message = "Action " + action.Pin + " not successful"
+					}
+					SendMessageToTelegram(client, types.TelegramMessage{message, action.ChatId})
+				}
+				for _, programmedActionOperation := range programmedActionOperations {
+					programmedActionOperationsChannel <- programmedActionOperation
+					// Update the cache
+					operation := programmedActionOperation.Operation
+					if operation != types.GET_ACTIONS {
+						found := -1
+						for index, v := range cachedProgrammedActions {
+							if v.Equals(programmedActionOperation.ProgrammedAction) {
+								found = index
+								break
+							}
+						}
+						if operation == types.CREATE {
+							if found == -1 {
+								cachedProgrammedActions = append(cachedProgrammedActions, programmedActionOperation.ProgrammedAction)
+							}
+						} else if operation == types.REMOVE {
+							if found != -1 {
+								(cachedProgrammedActions)[found] = (cachedProgrammedActions)[len(cachedProgrammedActions)-1]
+								cachedProgrammedActions = (cachedProgrammedActions)[:len(cachedProgrammedActions)-1]
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 func RegisterPinsToGRPCServer(client messages_protocol.RPIHomeServerServiceClient,
 	config configuration_loader.InitialConfiguration,
 	programmedActions []types.ProgrammedAction) (err error) {
@@ -32,10 +112,21 @@ func RegisterPinsToGRPCServer(client messages_protocol.RPIHomeServerServiceClien
 	for _, pin := range config.PinsActive {
 		pins = append(pins, pin.Name)
 	}
-	// TODO: add programmed actions
+	var programmedActionsProto []*messages_protocol.ProgrammedAction
+	for _, programmedAction := range programmedActions {
+		programmedActionsProto = append(programmedActionsProto,
+			&messages_protocol.ProgrammedAction{
+				Action: &messages_protocol.PinStatePair{
+					Pin:   programmedAction.Action.Pin,
+					State: programmedAction.Action.State,
+				},
+				Repeat: programmedAction.Repeat,
+				Time:   programmedAction.Time.Format("15:04:05"),
+			})
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	result, err := client.RegisterToServer(ctx, &messages_protocol.RegistrationMessage{PinsToHandle: pins})
+	result, err := client.RegisterToServer(ctx, &messages_protocol.RegistrationMessage{PinsToHandle: pins, ProgrammedActions: programmedActionsProto})
 	if err == nil && result.Result != messages_protocol.RegistrationStatusCodes_Ok {
 		errorMessage := result.Result.String()
 		if result.Result == messages_protocol.RegistrationStatusCodes_PinNameAlreadyRegistered {
@@ -62,13 +153,8 @@ func CheckForActions(client messages_protocol.RPIHomeServerServiceClient) ([]typ
 	}
 	var programmedActionOperations []types.ProgrammedActionOperation
 	for _, programmedAction := range protoActions.ProgrammedActionOperations {
-		timestamp, err := ptypes.Timestamp(programmedAction.ProgrammedAction.Time)
-		if err != nil {
-			continue
-		}
-		for timestamp.Before(time.Now()) {
-			timestamp = timestamp.Add(time.Hour * 24)
-		}
+		time := types.MyTime(time.Now())
+		time.UnmarshalJSON([]byte(programmedAction.ProgrammedAction.Time))
 		action := types.ProgrammedActionOperation{
 			Operation: programmedAction.Operation,
 			ProgrammedAction: types.ProgrammedAction{
@@ -77,7 +163,7 @@ func CheckForActions(client messages_protocol.RPIHomeServerServiceClient) ([]typ
 					programmedAction.ProgrammedAction.Action.State,
 					programmedAction.ProgrammedAction.Action.ChatId,
 				},
-				Time:   types.MyTime(timestamp),
+				Time:   time,
 				Repeat: programmedAction.ProgrammedAction.Repeat,
 			},
 		}

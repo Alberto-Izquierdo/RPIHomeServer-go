@@ -29,15 +29,16 @@ func main() {
 	// gRPC server and telegram bot
 	if config.ServerConfiguration != nil {
 		tgGrpcActionsChannel := make(chan types.Action)
+		tgGrpcOperationsChannel := make(chan types.ProgrammedActionOperation)
 		tgGrpcResponsesChannel := make(chan types.TelegramMessage)
 		exitChannels = append(exitChannels, make(chan bool))
-		err = telegram_bot.LaunchTelegramBot(config, tgGrpcActionsChannel, tgGrpcResponsesChannel, exitChannels[len(exitChannels)-1])
+		err = telegram_bot.LaunchTelegramBot(config, tgGrpcActionsChannel, tgGrpcOperationsChannel, tgGrpcResponsesChannel, exitChannels[len(exitChannels)-1])
 		if err != nil {
 			fmt.Println("Error while setting up telegram bot: " + err.Error())
 			return
 		}
 		exitChannels = append(exitChannels, make(chan bool))
-		err = grpc_server.SetupAndRun(config, tgGrpcActionsChannel, tgGrpcResponsesChannel, nil, exitChannels[len(exitChannels)-1])
+		err = grpc_server.SetupAndRun(config, tgGrpcActionsChannel, tgGrpcOperationsChannel, tgGrpcResponsesChannel, exitChannels[len(exitChannels)-1])
 		if err != nil {
 			fmt.Println("Error while setting up gRPC server: " + err.Error())
 			return
@@ -48,7 +49,7 @@ func main() {
 	exitChannels = append(exitChannels, make(chan bool))
 	err = rpi_client.SetupAndRun(config, exitChannels[len(exitChannels)-1])
 	if err != nil {
-		fmt.Println("RPI client configuration failed: %s", err.Error())
+		fmt.Println("RPI client configuration failed: " + err.Error())
 		exitChannels = exitChannels[:len(exitChannels)-1]
 	}
 
