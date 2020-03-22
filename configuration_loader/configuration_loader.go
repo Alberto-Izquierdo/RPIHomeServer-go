@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/types"
 )
@@ -65,6 +66,13 @@ func loadConfigurationFromFileContent(fileContent []byte) (result InitialConfigu
 				if !found {
 					err = errors.New("Automatic message number " + strconv.Itoa(index) + ", " + automaticMessage.Action.Pin + " not present in the pins active")
 				}
+				currTime := time.Time(result.AutomaticMessages[index].Time)
+				now := time.Now()
+				date := time.Date(now.Year(), now.Month(), now.Day(), currTime.Hour(), currTime.Minute(), currTime.Second(), 0, now.Location())
+				for date.Before(now) {
+					date = date.Add(time.Hour * 24)
+				}
+				result.AutomaticMessages[index].Time = types.MyTime(date)
 			}
 		}
 	}

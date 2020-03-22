@@ -36,15 +36,7 @@ func SetupAndRun(config configuration_loader.InitialConfiguration, exitChannel c
 	if err != nil {
 		return err
 	}
-	var programmedActions []types.ProgrammedAction
-	for _, programmedMessage := range config.AutomaticMessages {
-		programmedActions = append(programmedActions, types.ProgrammedAction{
-			Action: programmedMessage.Action,
-			Repeat: programmedMessage.Repeat,
-			Time:   programmedMessage.Time,
-		})
-	}
-	err = grpc_client.RegisterPinsToGRPCServer(client, config, programmedActions)
+	err = grpc_client.RegisterPinsToGRPCServer(client, config, config.AutomaticMessages)
 	if err != nil {
 		return errors.New("There was an error connecting to the gRPC server: " + err.Error())
 	}

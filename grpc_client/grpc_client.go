@@ -10,7 +10,6 @@ import (
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/gpio_manager"
 	messages_protocol "github.com/Alberto-Izquierdo/RPIHomeServer-go/messages"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/types"
-	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc"
 )
 
@@ -56,7 +55,6 @@ func Run(programmedActionOperationsChannel chan types.ProgrammedActionOperation,
 						return
 					default:
 						var programmedActions []types.ProgrammedAction
-						// TODO: add programmed actions from message_generator
 						err = RegisterPinsToGRPCServer(client, configuration_loader.InitialConfiguration{}, programmedActions)
 						if err != nil {
 							fmt.Println("There was an error connecting to the gRPC server: " + err.Error())
@@ -93,10 +91,21 @@ func RegisterPinsToGRPCServer(client messages_protocol.RPIHomeServerServiceClien
 	for _, pin := range config.PinsActive {
 		pins = append(pins, pin.Name)
 	}
-	// TODO: add programmed actions
+	var programmedActionsProto []*messages_protocol.ProgrammedAction
+	for _, programmedAction := range programmedActions {
+		programmedActionsProto = append(programmedActionsProto,
+			&messages_protocol.ProgrammedAction{
+				Action: &messages_protocol.PinStatePair{
+					Pin:   programmedAction.Action.Pin,
+					State: programmedAction.Action.State,
+				},
+				Repeat: programmedAction.Repeat,
+				Time:   programmedAction.Time.Format("15:04:05"),
+			})
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	result, err := client.RegisterToServer(ctx, &messages_protocol.RegistrationMessage{PinsToHandle: pins})
+	result, err := client.RegisterToServer(ctx, &messages_protocol.RegistrationMessage{PinsToHandle: pins, ProgrammedActions: programmedActionsProto})
 	if err == nil && result.Result != messages_protocol.RegistrationStatusCodes_Ok {
 		errorMessage := result.Result.String()
 		if result.Result == messages_protocol.RegistrationStatusCodes_PinNameAlreadyRegistered {
@@ -123,10 +132,8 @@ func CheckForActions(client messages_protocol.RPIHomeServerServiceClient) ([]typ
 	}
 	var programmedActionOperations []types.ProgrammedActionOperation
 	for _, programmedAction := range protoActions.ProgrammedActionOperations {
-		timestamp, err := ptypes.Timestamp(programmedAction.ProgrammedAction.Time)
-		if err != nil {
-			continue
-		}
+		time := types.MyTime(time.Now())
+		time.UnmarshalJSON([]byte(programmedAction.ProgrammedAction.Time))
 		action := types.ProgrammedActionOperation{
 			Operation: programmedAction.Operation,
 			ProgrammedAction: types.ProgrammedAction{
@@ -135,7 +142,7 @@ func CheckForActions(client messages_protocol.RPIHomeServerServiceClient) ([]typ
 					programmedAction.ProgrammedAction.Action.State,
 					programmedAction.ProgrammedAction.Action.ChatId,
 				},
-				Time:   types.MyTime(timestamp),
+				Time:   time,
 				Repeat: programmedAction.ProgrammedAction.Repeat,
 			},
 		}

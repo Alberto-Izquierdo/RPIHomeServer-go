@@ -12,7 +12,6 @@ import (
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/configuration_loader"
 	messages_protocol "github.com/Alberto-Izquierdo/RPIHomeServer-go/messages"
 	"github.com/Alberto-Izquierdo/RPIHomeServer-go/types"
-	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 )
@@ -70,12 +69,65 @@ func run(server *grpc.Server, rpiServer *rpiHomeServer, listener *net.Listener, 
 				rpiServer.mutex.Unlock()
 			}
 		case action := <-programmedActionsChannel:
+			// Replace with a function
 			rpiServer.mutex.Lock()
-			client, err := getClientAssociatedWithPin(action.ProgrammedAction.Action.Pin, rpiServer)
-			if err != nil {
-				responsesChannel <- types.TelegramMessage{err.Error(), action.ProgrammedAction.Action.ChatId}
+			if action.Operation == types.GET_ACTIONS {
+				// Return the cached programmed actions
+				response := "ProgrammedActions"
+				for _, client := range rpiServer.clientsRegistered {
+					for _, v := range *client.ProgrammedActions {
+						response += " " + types.ProgrammedActionToString(v)
+					}
+				}
+				responsesChannel <- types.TelegramMessage{response, action.ProgrammedAction.Action.ChatId}
 			} else {
-				rpiServer.programmedActions[client] <- action
+				client, err := getClientAssociatedWithPin(action.ProgrammedAction.Action.Pin, rpiServer)
+				if err != nil {
+					responsesChannel <- types.TelegramMessage{err.Error(), action.ProgrammedAction.Action.ChatId}
+				} else {
+					// Update the cache
+					slice := rpiServer.clientsRegistered[client].ProgrammedActions
+					if action.Operation == types.REMOVE {
+						found := false
+						for index, v := range *slice {
+							if action.ProgrammedAction.Equals(v) {
+								(*slice)[index] = (*slice)[len(*slice)-1]
+								*slice = (*slice)[:len(*slice)-1]
+								found = true
+								break
+							}
+						}
+						if found {
+							// Send the operation
+							rpiServer.programmedActions[client] <- action
+						} else {
+							responsesChannel <- types.TelegramMessage{"This programmed action did not exist", action.ProgrammedAction.Action.ChatId}
+						}
+					} else if action.Operation == types.CREATE {
+						found := false
+						for _, v := range *slice {
+							if action.ProgrammedAction.Equals(v) {
+								found = true
+								break
+							}
+						}
+						if !found {
+							*slice = append(*slice, action.ProgrammedAction)
+							// Send the operation
+							rpiServer.programmedActions[client] <- action
+						} else {
+							responsesChannel <- types.TelegramMessage{"This programmed action already existed", action.ProgrammedAction.Action.ChatId}
+						}
+					}
+					// Return the cached programmed actions
+					response := "ProgrammedActions"
+					for _, client := range rpiServer.clientsRegistered {
+						for _, v := range *client.ProgrammedActions {
+							response += " " + types.ProgrammedActionToString(v)
+						}
+					}
+					responsesChannel <- types.TelegramMessage{response, action.ProgrammedAction.Action.ChatId}
+				}
 			}
 			rpiServer.mutex.Unlock()
 		}
@@ -105,7 +157,7 @@ type rpiHomeServer struct {
 type clientRegisteredData struct {
 	LastTimeConnected time.Time
 	Pins              []string
-	ProgrammedActions []types.ProgrammedAction
+	ProgrammedActions *[]types.ProgrammedAction
 }
 
 func (s *rpiHomeServer) getPinsAndUpdateMap() string {
@@ -146,7 +198,8 @@ func (s *rpiHomeServer) RegisterToServer(ctx context.Context, message *messages_
 		}
 		var programmedActions []types.ProgrammedAction
 		for _, programmedAction := range message.ProgrammedActions {
-			timestamp, err := ptypes.Timestamp(programmedAction.Time)
+			myTime := types.MyTime(time.Now())
+			err := myTime.UnmarshalJSON([]byte(programmedAction.Time))
 			if err != nil {
 				continue
 			}
@@ -155,15 +208,16 @@ func (s *rpiHomeServer) RegisterToServer(ctx context.Context, message *messages_
 					Pin:   programmedAction.Action.Pin,
 					State: programmedAction.Action.State,
 				},
-				Time:   types.MyTime(timestamp),
+				Time:   myTime,
 				Repeat: true,
 			})
 		}
 		s.clientsRegistered[p.Addr] = clientRegisteredData{
 			LastTimeConnected: time.Now(),
 			Pins:              message.PinsToHandle,
-			ProgrammedActions: programmedActions,
+			ProgrammedActions: &programmedActions,
 		}
+
 		s.actionsToPerform[p.Addr] = make(chan types.Action)
 		s.programmedActions[p.Addr] = make(chan types.ProgrammedActionOperation)
 		code := messages_protocol.RegistrationStatusCodes_Ok
@@ -208,10 +262,6 @@ func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_pro
 		}
 		actions.Actions = []*messages_protocol.PinStatePair{&protoAction}
 	case action := <-s.programmedActions[p.Addr]:
-		time, err := ptypes.TimestampProto(time.Time(action.ProgrammedAction.Time))
-		if err != nil {
-			return nil, err
-		}
 		programmedAction := messages_protocol.ProgrammedActionOperation{
 			Operation: action.Operation,
 			ProgrammedAction: &messages_protocol.ProgrammedAction{
@@ -220,7 +270,7 @@ func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_pro
 					State:  action.ProgrammedAction.Action.State,
 					ChatId: action.ProgrammedAction.Action.ChatId,
 				},
-				Time:   time,
+				Time:   action.ProgrammedAction.Time.Format("15:04:05"),
 				Repeat: action.ProgrammedAction.Repeat,
 			},
 		}

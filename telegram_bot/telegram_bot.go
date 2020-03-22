@@ -77,7 +77,9 @@ func LaunchTelegramBot(config configuration_loader.InitialConfiguration, outputC
 							}
 						}()
 					} else if matched, err = regexp.Match("^GetProgrammedActions$", []byte(possibleAction)); err == nil && matched {
-						// TODO: return programmed actions and keyboard to remove them/go back
+						go func() {
+							programmedActionOperationsChannel <- types.ProgrammedActionOperation{Operation: types.GET_ACTIONS, ProgrammedAction: types.ProgrammedAction{Action: types.Action{ChatId: update.Message.Chat.ID}}}
+						}()
 					} else {
 						bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Message was not correct"))
 						fmt.Println("Wrong message: " + possibleAction)
@@ -92,6 +94,9 @@ func LaunchTelegramBot(config configuration_loader.InitialConfiguration, outputC
 				fields := strings.Fields(response.Message)
 				if fields[0] == "start" {
 					msg := createMarkupForMessages(fields[1:], response.ChatId)
+					bot.Send(msg)
+				} else if fields[0] == "ProgrammedActions" {
+					msg := createGetProgrammedActionsResponse(response.Message, response.ChatId)
 					bot.Send(msg)
 				} else {
 					msg := tgbotapi.NewMessage(response.ChatId, response.Message)
@@ -169,11 +174,25 @@ func buildMessage(msgContent string, chatId int64, replyToMessageId int) tgbotap
 func createMarkupForMessages(messages []string, chatId int64) tgbotapi.MessageConfig {
 	markup := tgbotapi.NewReplyKeyboard()
 	markup.Keyboard = append(markup.Keyboard, tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton("/start")))
+	markup.Keyboard = append(markup.Keyboard, tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton("GetProgrammedActions")))
 	for _, value := range messages {
 		markup.Keyboard = append(markup.Keyboard, tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton(value+"On"), tgbotapi.NewKeyboardButton(value+"Off"), tgbotapi.NewKeyboardButton(value+"OnAndOff 2s")))
 	}
 	msg := tgbotapi.NewMessage(chatId, "Welcome to rpi bot")
 	msg.ReplyMarkup = markup
 	fmt.Println("User with id \"" + strconv.FormatInt(chatId, 10) + "\" requested message types")
+	return msg
+}
+
+func createGetProgrammedActionsResponse(message string, chatId int64) tgbotapi.MessageConfig {
+	markup := tgbotapi.NewReplyKeyboard()
+	markup.Keyboard = append(markup.Keyboard, tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton("/start")))
+	fields := strings.Fields(message)
+	for index := 1; index < len(fields); index++ {
+		markup.Keyboard = append(markup.Keyboard, tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton("RemoveProgrammedAction "+fields[index])))
+	}
+	msg := tgbotapi.NewMessage(chatId, "Programmed messages currently active:")
+	msg.ReplyMarkup = markup
+	fmt.Println("User with id \"" + strconv.FormatInt(chatId, 10) + "\" requested programmed messages")
 	return msg
 }

@@ -64,7 +64,9 @@ func (this ProgrammedAction) Equals(other interface{}) bool {
 	otherTime := other.(ProgrammedAction)
 	equal := otherTime.Action.Pin == this.Action.Pin &&
 		otherTime.Action.State == this.Action.State &&
-		otherTime.Time == this.Time
+		time.Time(otherTime.Time).Hour() == time.Time(this.Time).Hour() &&
+		time.Time(otherTime.Time).Minute() == time.Time(this.Time).Minute() &&
+		time.Time(otherTime.Time).Second() == time.Time(this.Time).Second()
 	return equal
 }
 
@@ -102,4 +104,20 @@ func ProgrammedActionFromString(str string, chatId int64) (*ProgrammedAction, er
 		Time:   MyTime(date),
 	}
 	return &result, nil
+}
+
+func ProgrammedActionToString(p ProgrammedAction) string {
+	result := p.Action.Pin + ";"
+	if p.Action.State {
+		result += "true;"
+	} else {
+		result += "false;"
+	}
+	if p.Repeat {
+		result += "true;"
+	} else {
+		result += "false;"
+	}
+	result += p.Time.Format("15:04:05")
+	return result
 }
