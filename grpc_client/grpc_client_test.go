@@ -119,7 +119,7 @@ func TestRun(t *testing.T) {
 	programmedActionOperationsChannel := make(chan types.ProgrammedActionOperation)
 	go func() {
 		time.Sleep(1 * time.Second)
-		Run(programmedActionOperationsChannel, telegramChannel, clientExitChannel, client, connection)
+		Run(programmedActionOperationsChannel, telegramChannel, clientExitChannel, client, connection, configuration_loader.InitialConfiguration{})
 	}()
 	clientExitChannel <- true
 	serverExitChannel <- true
