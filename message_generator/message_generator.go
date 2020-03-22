@@ -108,11 +108,6 @@ func handleOperation(operation types.ProgrammedActionOperation, queue *ordered_q
 			response = types.TelegramMessage{Message: "Error while trying to add the new programmed action" + err.Error(), ChatId: programmedAction.Action.ChatId}
 		}
 	case types.REMOVE:
-		fmt.Println("action received")
-		fmt.Println(types.ProgrammedActionToString(programmedAction))
-		fmt.Println("first action")
-		fmt.Println(types.ProgrammedActionToString(nextAction))
-
 		if nextActionValid == true && programmedAction.Equals(nextAction) {
 			response = types.TelegramMessage{Message: "Programmed action removed", ChatId: programmedAction.Action.ChatId}
 			addPreviousAction = false
