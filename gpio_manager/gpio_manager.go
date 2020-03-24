@@ -36,6 +36,10 @@ func Setup(pins []types.PairNamePin) (err error) {
 		manager.clearAllPins()
 		fmt.Println("Unable to open gpio, error:", err.Error())
 		fmt.Println("The program will continue for testing purpouses")
+	} else {
+		for _, value := range manager.PinStates {
+			rpio.Pin(value.pin).Output()
+		}
 	}
 	return err
 }
