@@ -1,0 +1,34 @@
+{
+    "PinsActive": [
+        {
+            "name": "Pin1",
+            "pin": 18
+        }
+    ],
+    "ServerConfiguration": {
+        "TelegramBotToken": "[YOUR_TELEGRAM_TOKEN]",
+        "GRPCServerPort": 8080,
+        "TelegramAuthorizedUsers": [
+            11111,
+            22222
+        ]
+    },
+    "AutomaticMessages": [
+        {
+            "Action": {
+                "Pin": "Pin1",
+                "State": true
+            },
+            "Time": "03:45:10"
+        },
+        {
+            "Action": {
+                "Pin": "Pin1",
+                "State": false
+            },
+            "Time": "03:45:15"
+        }
+    ],
+    // Not necessary in this case as we are connecting to localhost
+    "GRPCServerIp": "127.0.0.1:8080"
+}
