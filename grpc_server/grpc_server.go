@@ -255,6 +255,7 @@ func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_pro
 	}
 	s.mutex.Lock()
 	s.clientsRegistered[p.Addr].LastTimeConnected = time.Now()
+	s.mutex.Unlock()
 	actions := messages_protocol.ActionsToPerform{}
 	select {
 	case action := <-s.actionsToPerform[p.Addr]:
