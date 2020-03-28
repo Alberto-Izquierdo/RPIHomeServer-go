@@ -17,6 +17,7 @@ import (
 )
 
 const timeWaitingForNewActions time.Duration = 2 * time.Second
+const timeWaitingForClientConnection time.Duration = timeWaitingForNewActions * 5
 
 func SetupAndRun(config configuration_loader.InitialConfiguration, inputChannel chan types.Action, programmedActionsChannel chan types.ProgrammedActionOperation, responsesChannel chan types.TelegramMessage, exitChannel chan bool) error {
 	if config.ServerConfiguration == nil {
@@ -35,7 +36,7 @@ func SetupAndRun(config configuration_loader.InitialConfiguration, inputChannel 
 		pinsRegistered = append(pinsRegistered, pin.Name)
 	}
 	rpiServer := rpiHomeServer{
-		clientsRegistered: make(map[net.Addr]clientRegisteredData),
+		clientsRegistered: make(map[net.Addr]*clientRegisteredData),
 		actionsToPerform:  make(map[net.Addr]chan types.Action),
 		programmedActions: make(map[net.Addr]chan types.ProgrammedActionOperation),
 		responsesChannel:  responsesChannel,
@@ -147,7 +148,7 @@ func getClientAssociatedWithPin(pinName string, rpiServer *rpiHomeServer) (net.A
 
 type rpiHomeServer struct {
 	messages_protocol.RPIHomeServerServiceServer
-	clientsRegistered map[net.Addr]clientRegisteredData
+	clientsRegistered map[net.Addr]*clientRegisteredData
 	actionsToPerform  map[net.Addr]chan types.Action
 	programmedActions map[net.Addr]chan types.ProgrammedActionOperation
 	responsesChannel  chan types.TelegramMessage
@@ -165,7 +166,7 @@ func (s *rpiHomeServer) getPinsAndUpdateMap() string {
 	response := ""
 	var clientsToRemove []net.Addr
 	for key, pins := range s.clientsRegistered {
-		if time.Now().Sub(pins.LastTimeConnected) > time.Second*6 {
+		if time.Now().Sub(pins.LastTimeConnected) > timeWaitingForClientConnection {
 			clientsToRemove = append(clientsToRemove, key)
 		} else {
 			for _, pin := range pins.Pins {
@@ -212,7 +213,7 @@ func (s *rpiHomeServer) RegisterToServer(ctx context.Context, message *messages_
 				Repeat: true,
 			})
 		}
-		s.clientsRegistered[p.Addr] = clientRegisteredData{
+		s.clientsRegistered[p.Addr] = &clientRegisteredData{
 			LastTimeConnected: time.Now(),
 			Pins:              message.PinsToHandle,
 			ProgrammedActions: &programmedActions,
@@ -252,6 +253,8 @@ func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_pro
 	if !ok {
 		return nil, errors.New("Error while extracting the peer from context")
 	}
+	s.mutex.Lock()
+	s.clientsRegistered[p.Addr].LastTimeConnected = time.Now()
 	actions := messages_protocol.ActionsToPerform{}
 	select {
 	case action := <-s.actionsToPerform[p.Addr]:
@@ -279,9 +282,8 @@ func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_pro
 		break
 	}
 	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	previousClientData := s.clientsRegistered[p.Addr]
-	s.clientsRegistered[p.Addr] = clientRegisteredData{time.Now(), previousClientData.Pins, previousClientData.ProgrammedActions}
+	s.clientsRegistered[p.Addr].LastTimeConnected = time.Now()
+	s.mutex.Unlock()
 	return &actions, nil
 }
 
