@@ -65,9 +65,10 @@ func run(server *grpc.Server, rpiServer *rpiHomeServer, listener *net.Listener, 
 				if err != nil {
 					responsesChannel <- types.TelegramMessage{err.Error(), action.ChatId}
 				} else {
-					rpiServer.actionsToPerform[client] <- action
+					channel := rpiServer.actionsToPerform[client]
+					rpiServer.mutex.Unlock()
+					channel <- action
 				}
-				rpiServer.mutex.Unlock()
 			}
 		case action := <-programmedActionsChannel:
 			// Replace with a function
@@ -252,6 +253,12 @@ func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_pro
 	if !ok {
 		return nil, errors.New("Error while extracting the peer from context")
 	}
+	s.mutex.Lock()
+	if _, ok := s.clientsRegistered[p.Addr]; !ok {
+		return nil, errors.New("Client not registered")
+	}
+	s.clientsRegistered[p.Addr].LastTimeConnected = time.Now()
+	s.mutex.Unlock()
 	actions := messages_protocol.ActionsToPerform{}
 	select {
 	case action := <-s.actionsToPerform[p.Addr]:
