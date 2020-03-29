@@ -224,8 +224,7 @@ func (s *rpiHomeServer) RegisterToServer(ctx context.Context, message *messages_
 		code := messages_protocol.RegistrationStatusCodes_Ok
 		result.Result = code
 	} else {
-		code := messages_protocol.RegistrationStatusCodes_PinNameAlreadyRegistered
-		result.Result = code
+		result.Result = messages_protocol.RegistrationStatusCodes_PinNameAlreadyRegistered
 		result.PinsRepeated = pinsRepeated
 	}
 	return result, nil
@@ -253,9 +252,6 @@ func (s *rpiHomeServer) CheckForActions(ctx context.Context, empty *messages_pro
 	if !ok {
 		return nil, errors.New("Error while extracting the peer from context")
 	}
-	s.mutex.Lock()
-	s.clientsRegistered[p.Addr].LastTimeConnected = time.Now()
-	s.mutex.Unlock()
 	actions := messages_protocol.ActionsToPerform{}
 	select {
 	case action := <-s.actionsToPerform[p.Addr]:

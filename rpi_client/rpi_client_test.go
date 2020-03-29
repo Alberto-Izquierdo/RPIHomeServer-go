@@ -26,13 +26,13 @@ func createServer(t *testing.T) (chan bool, chan types.Action, chan types.Telegr
 func TestWrongConfig(t *testing.T) {
 	var config configuration_loader.InitialConfiguration
 	_, _, err := grpc_client.ConnectToGrpcServer(config)
-	assert.NotEqual(t, err, nil, "Empty config should return an error")
+	assert.NotNil(t, err, "Empty config should return an error")
 	config.GRPCServerIp = "asdf"
 	_, _, err = grpc_client.ConnectToGrpcServer(config)
-	assert.NotEqual(t, err, nil, "Wrong config should return an error")
+	assert.NotNil(t, err, "Wrong config should return an error")
 	config.GRPCServerIp = "localhost:8080"
 	_, _, err = grpc_client.ConnectToGrpcServer(config)
-	assert.NotEqual(t, err, nil, "Connecting to a non existing server should return an error")
+	assert.NotNil(t, err, "Connecting to a non existing server should return an error")
 }
 
 func TestConnectionToServer(t *testing.T) {
@@ -77,7 +77,9 @@ func TestCheckForActions(t *testing.T) {
 	clientConfig.PinsActive = append(clientConfig.PinsActive, types.PairNamePin{"pin2", 90})
 	client, _, err := grpc_client.ConnectToGrpcServer(clientConfig)
 	assert.Nil(t, err)
-	grpc_client.RegisterPinsToGRPCServer(client, clientConfig, []types.ProgrammedAction{})
+	assert.NotNil(t, client)
+	err = grpc_client.RegisterPinsToGRPCServer(client, clientConfig, []types.ProgrammedAction{})
+	assert.Nil(t, err)
 	go func() {
 		serverInputChannel <- types.Action{"pin2", true, 0}
 		<-serverOutputChannel
