@@ -9,10 +9,11 @@ env:
     - TARGET=rpi
 before_install:
   - sudo snap install protobuf --classic
-  - go get -u github.com/golang/protobuf/protoc-gen-go
+  - go install google.golang.org/protobuf/cmd/protoc-gen-go
+  - go get -u google.golang.org/grpc
   - go mod download
   - mkdir messages
-  - protoc -I protobuf_messages/ --go_out=plugins=grpc:messages protobuf_messages/messages.proto
+  - protoc -I protobuf_messages/ --go-grpc_out=messages --go_out=messages protobuf_messages/messages.proto
 
 script:
   - if [ $TARGET == "desktop" ]; then
